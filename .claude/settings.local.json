@@ -31,7 +31,12 @@
       "Bash(git config user.name \"Koen Kerkvliet\")",
       "Bash(git config user.email \"koen@example.com\")",
       "Bash(git add .)",
-      "Bash(git commit -m \"Initial commit: School bezetting tool\")"
+      "Bash(git commit -m \"Initial commit: School bezetting tool\")",
+      "Bash(git remote add origin https://github.com/KoenKerkvliet/school-bezetting.git)",
+      "Bash(git branch -M main)",
+      "Bash(git push -u origin main)",
+      "Bash(npm install @supabase/supabase-js)",
+      "Bash(git commit:*)"
     ]
   }
 }

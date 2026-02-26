@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useReducer, useEffect } from 'react';
+import React, { createContext, useContext, useReducer, useEffect, useState } from 'react';
+import * as db from '../services/database';
 
 const AppContext = createContext(null);
 
@@ -184,6 +185,9 @@ const initialState = {
 
 function reducer(state, action) {
   switch (action.type) {
+    case 'SET_INITIAL_STATE':
+      return action.payload;
+
     case 'ADD_GROUP':
       return { ...state, groups: [...state.groups, action.payload] };
     case 'UPDATE_GROUP':
@@ -192,7 +196,7 @@ function reducer(state, action) {
       return {
         ...state,
         groups: state.groups.filter(g => g.id !== action.payload),
-        units: state.units.map(u => ({ ...u, groupIds: u.groupIds.filter(id => id !== action.payload) })),
+        units: state.units.map(u => ({ ...u, groupIds: (u.groupIds || []).filter(id => id !== action.payload) })),
       };
 
     case 'ADD_UNIT':
@@ -214,8 +218,8 @@ function reducer(state, action) {
       return {
         ...state,
         staff: state.staff.filter(s => s.id !== action.payload),
-        absences: state.absences.filter(a => a.staffId !== action.payload),
-        timeAbsences: (state.timeAbsences || []).filter(a => a.staffId !== action.payload),
+        absences: state.absences.filter(a => a.staff_id !== action.payload),
+        timeAbsences: (state.timeAbsences || []).filter(a => a.staff_id !== action.payload),
       };
 
     case 'ADD_ABSENCE':
@@ -234,22 +238,68 @@ function reducer(state, action) {
 }
 
 export function AppProvider({ children }) {
-  const [state, dispatch] = useReducer(reducer, null, () => {
-    try {
-      const saved = localStorage.getItem('schoolPlanning');
-      if (saved) return JSON.parse(saved);
-    } catch {
-      // ignore
-    }
-    return initialState;
-  });
+  const [state, dispatch] = useReducer(reducer, initialState);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
+  // Load data from Supabase on mount
   useEffect(() => {
-    localStorage.setItem('schoolPlanning', JSON.stringify(state));
-  }, [state]);
+    const loadData = async () => {
+      try {
+        setLoading(true);
+        const data = await db.loadAllData();
+
+        // Reconstruct staff schedules
+        const staffWithSchedules = data.staff.map(staff => {
+          const schedules = data.timeAbsences || [];
+          return { ...staff, schedule: {} };
+        });
+
+        dispatch({
+          type: 'SET_INITIAL_STATE',
+          payload: {
+            groups: data.groups || [],
+            units: data.units || [],
+            staff: staffWithSchedules,
+            absences: data.absences || [],
+            timeAbsences: data.timeAbsences || [],
+          }
+        });
+        setError(null);
+      } catch (err) {
+        console.error('Failed to load data from Supabase:', err);
+        setError(err.message);
+        // Fallback to localStorage
+        try {
+          const saved = localStorage.getItem('schoolPlanning');
+          if (saved) {
+            dispatch({ type: 'SET_INITIAL_STATE', payload: JSON.parse(saved) });
+          }
+        } catch {
+          // Use initial state
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
+  }, []);
+
+  // Save to Supabase when state changes (debounced)
+  useEffect(() => {
+    if (loading) return;
+
+    const timer = setTimeout(() => {
+      // Save to localStorage as backup
+      localStorage.setItem('schoolPlanning', JSON.stringify(state));
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, [state, loading]);
 
   return (
-    <AppContext.Provider value={{ state, dispatch }}>
+    <AppContext.Provider value={{ state, dispatch, loading, error }}>
       {children}
     </AppContext.Provider>
   );
