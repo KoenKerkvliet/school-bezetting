@@ -1,8 +1,11 @@
 import { supabase } from './supabaseClient'
 
 // ============ GROUPS ============
-export async function fetchGroups() {
-  const { data, error } = await supabase.from('groups').select('*')
+export async function fetchGroups(organizationId) {
+  const { data, error } = await supabase
+    .from('groups')
+    .select('*')
+    .eq('organization_id', organizationId)
   if (error) throw error
   return data || []
 }
@@ -25,8 +28,11 @@ export async function deleteGroup(id) {
 }
 
 // ============ UNITS ============
-export async function fetchUnits() {
-  const { data, error } = await supabase.from('units').select('*')
+export async function fetchUnits(organizationId) {
+  const { data, error } = await supabase
+    .from('units')
+    .select('*')
+    .eq('organization_id', organizationId)
   if (error) throw error
   return data || []
 }
@@ -49,8 +55,11 @@ export async function deleteUnit(id) {
 }
 
 // ============ STAFF ============
-export async function fetchStaff() {
-  const { data, error } = await supabase.from('staff').select('*')
+export async function fetchStaff(organizationId) {
+  const { data, error } = await supabase
+    .from('staff')
+    .select('*')
+    .eq('organization_id', organizationId)
   if (error) throw error
   return data || []
 }
@@ -110,8 +119,11 @@ export async function updateStaffSchedule(staffId, day, scheduleData) {
 }
 
 // ============ ABSENCES ============
-export async function fetchAbsences() {
-  const { data, error } = await supabase.from('absences').select('*')
+export async function fetchAbsences(organizationId) {
+  const { data, error } = await supabase
+    .from('absences')
+    .select('*')
+    .eq('organization_id', organizationId)
   if (error) throw error
   return data || []
 }
@@ -128,8 +140,11 @@ export async function deleteAbsence(id) {
 }
 
 // ============ TIME ABSENCES ============
-export async function fetchTimeAbsences() {
-  const { data, error } = await supabase.from('time_absences').select('*')
+export async function fetchTimeAbsences(organizationId) {
+  const { data, error } = await supabase
+    .from('time_absences')
+    .select('*')
+    .eq('organization_id', organizationId)
   if (error) throw error
   return data || []
 }
@@ -146,14 +161,14 @@ export async function deleteTimeAbsence(id) {
 }
 
 // ============ LOAD ALL DATA ============
-export async function loadAllData() {
+export async function loadAllData(organizationId) {
   try {
     const [groups, units, staff, absences, timeAbsences] = await Promise.all([
-      fetchGroups(),
-      fetchUnits(),
-      fetchStaff(),
-      fetchAbsences(),
-      fetchTimeAbsences(),
+      fetchGroups(organizationId),
+      fetchUnits(organizationId),
+      fetchStaff(organizationId),
+      fetchAbsences(organizationId),
+      fetchTimeAbsences(organizationId),
     ])
 
     return { groups, units, staff, absences, timeAbsences }
