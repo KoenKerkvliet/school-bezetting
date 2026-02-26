@@ -1,0 +1,37 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install)",
+      "Bash(cmd.exe /c \"where npm 2>&1 & where node 2>&1\")",
+      "Bash(powershell.exe -Command \"Get-Command npm -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source; Get-Command node -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source\")",
+      "Bash(powershell.exe -Command \"Get-ChildItem ''C:\\\\Program Files'' -Name | Select-String -Pattern ''node|npm'' 2>&1; Get-ChildItem ''C:\\\\Users\\\\koenk\\\\AppData\\\\Local'' -Name | Select-String -Pattern ''node|npm'' 2>&1; Get-ChildItem ''C:\\\\Users\\\\koenk\\\\AppData\\\\Roaming'' -Name | Select-String -Pattern ''node|npm'' 2>&1\")",
+      "Bash(tr ';' '\\\\n')",
+      "Bash(powershell.exe -Command \"Get-ChildItem -Path ''C:\\\\'' -Filter ''node.exe'' -Recurse -ErrorAction SilentlyContinue -Depth 6 | Select-Object -First 5 FullName\")",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(powershell.exe -Command \":*)",
+      "Bash(powershell.exe -Command \"Get-ChildItem -Path C:\\\\Users\\\\koenk -Filter ''node.exe'' -Recurse -Depth 5 -ErrorAction SilentlyContinue | Select-Object -ExpandProperty FullName\")",
+      "Bash(powershell.exe -Command \"Get-Command winget -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source\")",
+      "Bash(powershell.exe -Command \"winget install OpenJS.NodeJS.LTS --accept-source-agreements --accept-package-agreements\")",
+      "Bash(powershell.exe -Command \"Get-Command npm -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source\")",
+      "Bash(powershell.exe -Command \"& ''C:\\\\Program Files\\\\nodejs\\\\npm.cmd'' --version\")",
+      "Bash(powershell.exe -Command \"& ''C:\\\\Program Files\\\\nodejs\\\\npm.cmd'' install\")",
+      "Bash(powershell.exe -Command \"$env:PATH += '';C:\\\\Program Files\\\\nodejs''; Set-Location ''C:\\\\Users\\\\koenk\\\\OneDrive\\\\___Claude projecten\\\\Planning_Schatgraver''; npm install\")",
+      "Bash(powershell.exe -ExecutionPolicy Bypass -File \"C:\\\\Users\\\\koenk\\\\OneDrive\\\\___Claude projecten\\\\Planning_Schatgraver\\\\install.ps1\")",
+      "Bash(where node)",
+      "Bash(where npm)",
+      "Bash(timeout 8 bash -c 'until curl -s http://localhost:5173 > /dev/null 2>&1; do true; done')",
+      "Bash(curl -s http://localhost:5173)",
+      "Bash(curl -s http://localhost:5175)",
+      "Bash(wc -l \"/c/Users/koenk/OneDrive/___Claude projecten/Planning_Schatgraver/src/components/\"*.jsx \"/c/Users/koenk/OneDrive/___Claude projecten/Planning_Schatgraver/src/context/\"*.jsx \"/c/Users/koenk/OneDrive/___Claude projecten/Planning_Schatgraver/src/App.jsx\")",
+      "Bash(dir /x \"C:/Users/koenk/OneDrive/\")",
+      "Bash(./node_modules/.bin/vite --version)",
+      "Bash(node --version)",
+      "Bash(npm run dev)",
+      "Bash(git init)",
+      "Bash(git config user.name \"Koen Kerkvliet\")",
+      "Bash(git config user.email \"koen@example.com\")",
+      "Bash(git add .)",
+      "Bash(git commit -m \"Initial commit: School bezetting tool\")"
+    ]
+  }
+}
