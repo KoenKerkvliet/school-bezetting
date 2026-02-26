@@ -1,15 +1,19 @@
 import React, { useState } from 'react';
+import { AuthProvider, useAuth } from './context/AuthContext.jsx';
 import { AppProvider, useApp } from './context/AppContext.jsx';
+import ProtectedRoute from './components/ProtectedRoute.jsx';
 import Navbar from './components/Navbar.jsx';
 import Dashboard from './components/Dashboard.jsx';
 import GroupsPage from './components/GroupsPage.jsx';
 import StaffPage from './components/StaffPage.jsx';
+import AdminDashboard from './components/AdminDashboard.jsx';
 
 function AppContent() {
   const [currentPage, setCurrentPage] = useState('dashboard');
-  const { loading, error } = useApp();
+  const { loading: appLoading, error: appError } = useApp();
+  const { role } = useAuth();
 
-  if (loading) {
+  if (appLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
@@ -20,16 +24,21 @@ function AppContent() {
     );
   }
 
-  if (error) {
+  if (appError) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <p className="text-red-600 mb-2">⚠️ Fout bij laden data</p>
-          <p className="text-sm text-gray-600">{error}</p>
+          <p className="text-sm text-gray-600">{appError}</p>
           <p className="text-sm text-gray-500 mt-2">Lokale backup wordt gebruikt</p>
         </div>
       </div>
     );
+  }
+
+  // Admin panel for admins
+  if (currentPage === 'admin') {
+    return <AdminDashboard />;
   }
 
   return (
@@ -44,10 +53,20 @@ function AppContent() {
   );
 }
 
-export default function App() {
+function MainApp() {
   return (
     <AppProvider>
       <AppContent />
     </AppProvider>
+  );
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <ProtectedRoute>
+        <MainApp />
+      </ProtectedRoute>
+    </AuthProvider>
   );
 }

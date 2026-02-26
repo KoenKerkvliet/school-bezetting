@@ -1,0 +1,298 @@
+import React, { useState, useEffect } from 'react'
+import { useAuth } from '../context/AuthContext'
+import * as userService from '../services/userService'
+
+export default function UserManagementPage() {
+  const { organizationId } = useAuth()
+  const [users, setUsers] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [showCreateForm, setShowCreateForm] = useState(false)
+  const [editingUserId, setEditingUserId] = useState(null)
+
+  // Form state
+  const [formData, setFormData] = useState({
+    email: '',
+    firstName: '',
+    lastName: '',
+    role: 'Viewer',
+  })
+
+  const roles = ['Admin', 'Editor', 'Viewer']
+
+  // Load users
+  useEffect(() => {
+    const loadUsers = async () => {
+      try {
+        setLoading(true)
+        const userList = await userService.listOrgUsers(organizationId)
+        setUsers(userList)
+        setError('')
+      } catch (err) {
+        setError(err.message)
+        console.error('Error loading users:', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    if (organizationId) {
+      loadUsers()
+    }
+  }, [organizationId])
+
+  // Create new user
+  const handleCreateUser = async (e) => {
+    e.preventDefault()
+    setError('')
+
+    try {
+      setLoading(true)
+      const newUser = await userService.createUser(
+        formData.email,
+        formData.firstName,
+        formData.lastName,
+        formData.role,
+        organizationId
+      )
+
+      setUsers([newUser, ...users])
+      setFormData({ email: '', firstName: '', lastName: '', role: 'Viewer' })
+      setShowCreateForm(false)
+    } catch (err) {
+      setError(err.message || 'Fout bij het aanmaken van gebruiker')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Update user role
+  const handleUpdateRole = async (userId, newRole) => {
+    try {
+      setError('')
+      const updatedUser = await userService.updateUserRole(userId, newRole, organizationId)
+      setUsers(users.map((u) => (u.id === userId ? updatedUser : u)))
+      setEditingUserId(null)
+    } catch (err) {
+      setError(err.message)
+    }
+  }
+
+  // Delete user
+  const handleDeleteUser = async (userId) => {
+    if (!window.confirm('Weet je zeker dat je deze gebruiker wilt verwijderen?')) {
+      return
+    }
+
+    try {
+      setError('')
+      await userService.deleteUser(userId, organizationId)
+      setUsers(users.filter((u) => u.id !== userId))
+    } catch (err) {
+      setError(err.message)
+    }
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Create User Button */}
+      <div className="flex justify-between items-center">
+        <h2 className="text-2xl font-bold text-gray-900">Gebruikers</h2>
+        <button
+          onClick={() => setShowCreateForm(!showCreateForm)}
+          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
+        >
+          {showCreateForm ? 'Annuleren' : '+ Nieuwe gebruiker'}
+        </button>
+      </div>
+
+      {/* Error Message */}
+      {error && (
+        <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+          <p className="text-red-700">{error}</p>
+        </div>
+      )}
+
+      {/* Create Form */}
+      {showCreateForm && (
+        <form onSubmit={handleCreateUser} className="bg-white rounded-lg shadow p-6 space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Email adres *
+              </label>
+              <input
+                type="email"
+                value={formData.email}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                required
+                disabled={loading}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
+                placeholder="gebruiker@school.nl"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Voornaam
+              </label>
+              <input
+                type="text"
+                value={formData.firstName}
+                onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                disabled={loading}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
+                placeholder="Jan"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Achternaam
+              </label>
+              <input
+                type="text"
+                value={formData.lastName}
+                onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                disabled={loading}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
+                placeholder="Jansen"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Rol *</label>
+              <select
+                value={formData.role}
+                onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+                disabled={loading}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
+              >
+                {roles.map((role) => (
+                  <option key={role} value={role}>
+                    {role}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="flex gap-2 justify-end">
+            <button
+              type="button"
+              onClick={() => setShowCreateForm(false)}
+              className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-900 rounded-lg font-medium transition-colors"
+            >
+              Annuleren
+            </button>
+            <button
+              type="submit"
+              disabled={loading}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-lg font-medium transition-colors"
+            >
+              {loading ? 'Bezig...' : 'Gebruiker aanmaken'}
+            </button>
+          </div>
+        </form>
+      )}
+
+      {/* Users List */}
+      <div className="bg-white rounded-lg shadow overflow-hidden">
+        {loading && !showCreateForm ? (
+          <div className="p-8 text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
+            <p className="text-gray-600 mt-4">Gebruikers laden...</p>
+          </div>
+        ) : users.length === 0 ? (
+          <div className="p-8 text-center text-gray-500">Geen gebruikers gevonden</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-50 border-b border-gray-200">
+                <tr>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
+                    Naam
+                  </th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
+                    Email
+                  </th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
+                    Rol
+                  </th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
+                    Status
+                  </th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
+                    Acties
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {users.map((user) => (
+                  <tr key={user.id} className="hover:bg-gray-50 transition-colors">
+                    <td className="px-6 py-4 text-sm">
+                      <div className="font-medium text-gray-900">
+                        {user.first_name} {user.last_name}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-600">{user.email}</td>
+                    <td className="px-6 py-4 text-sm">
+                      {editingUserId === user.id ? (
+                        <select
+                          value={user.role}
+                          onChange={(e) => handleUpdateRole(user.id, e.target.value)}
+                          className="px-2 py-1 border border-gray-300 rounded text-sm"
+                          autoFocus
+                        >
+                          {roles.map((role) => (
+                            <option key={role} value={role}>
+                              {role}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <div
+                          onClick={() => setEditingUserId(user.id)}
+                          className="cursor-pointer inline-block px-2 py-1 bg-blue-100 text-blue-700 rounded text-sm font-medium hover:bg-blue-200"
+                        >
+                          {user.role}
+                        </div>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 text-sm">
+                      {user.email_verified_at ? (
+                        <span className="inline-block px-2 py-1 bg-green-100 text-green-700 rounded text-xs font-medium">
+                          ✓ Geverifieerd
+                        </span>
+                      ) : (
+                        <span className="inline-block px-2 py-1 bg-yellow-100 text-yellow-700 rounded text-xs font-medium">
+                          ⏳ In afwachting
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 text-sm">
+                      <button
+                        onClick={() => handleDeleteUser(user.id)}
+                        className="text-red-600 hover:text-red-900 font-medium"
+                      >
+                        Verwijderen
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* Info Box */}
+      <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+        <p className="text-blue-800 text-sm">
+          <strong>💡 Info:</strong> Wanneer je een nieuwe gebruiker aanmaakt, ontvangt deze een email met
+          instructies om een wachtwoord in te stellen. Klik op de rol om deze aan te passen.
+        </p>
+      </div>
+    </div>
+  )
+}

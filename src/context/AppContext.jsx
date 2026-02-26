@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useReducer, useEffect, useState } from 'react';
 import * as db from '../services/database';
+import { useAuth } from './AuthContext';
 
 const AppContext = createContext(null);
 
@@ -241,13 +242,19 @@ export function AppProvider({ children }) {
   const [state, dispatch] = useReducer(reducer, initialState);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const { organizationId, isAuthenticated } = useAuth();
 
-  // Load data from Supabase on mount
+  // Load data from Supabase on mount or when organizationId changes
   useEffect(() => {
     const loadData = async () => {
+      if (!isAuthenticated || !organizationId) {
+        setLoading(false);
+        return;
+      }
+
       try {
         setLoading(true);
-        const data = await db.loadAllData();
+        const data = await db.loadAllData(organizationId);
 
         // Reconstruct staff schedules
         const staffWithSchedules = data.staff.map(staff => {
@@ -284,7 +291,7 @@ export function AppProvider({ children }) {
     };
 
     loadData();
-  }, []);
+  }, [organizationId, isAuthenticated]);
 
   // Save to Supabase when state changes (debounced)
   useEffect(() => {
