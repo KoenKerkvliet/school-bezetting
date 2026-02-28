@@ -178,12 +178,16 @@ serve(async (req: Request) => {
     const origin = req.headers.get("origin") || "https://schoolbezetting.nl";
     const resetUrl = `${origin}/set-password`;
     let emailSent = false;
+    let emailError = "";
 
     const emailitApiKey = Deno.env.get("EMAILIT_API_KEY");
     if (emailitApiKey) {
       try {
         const subject = `Uitnodiging voor ${schoolName || "School Bezetting"}`;
         const html = inviteTemplate(firstName, resetUrl, schoolName || "School Bezetting");
+
+        console.log("Sending email via Emailit to:", email);
+        console.log("Using API key (first 10 chars):", emailitApiKey.substring(0, 10) + "...");
 
         const emailResponse = await fetch(EMAILIT_API_URL, {
           method: "POST",
@@ -199,18 +203,22 @@ serve(async (req: Request) => {
           }),
         });
 
+        const emailResponseText = await emailResponse.text();
+        console.log("Emailit response status:", emailResponse.status);
+        console.log("Emailit response body:", emailResponseText);
+
         if (emailResponse.ok) {
           emailSent = true;
-          console.log("Invite email sent via Emailit to:", email);
         } else {
-          const errorText = await emailResponse.text();
-          console.error("Emailit API error:", emailResponse.status, errorText);
+          emailError = `Emailit ${emailResponse.status}: ${emailResponseText}`;
         }
       } catch (emailErr) {
-        console.error("Emailit fetch error:", emailErr.message);
+        emailError = `Emailit fetch error: ${emailErr.message}`;
+        console.error(emailError);
       }
     } else {
-      console.warn("EMAILIT_API_KEY not configured, skipping email");
+      emailError = "EMAILIT_API_KEY not configured";
+      console.warn(emailError);
     }
 
     // Log to audit
@@ -236,7 +244,7 @@ serve(async (req: Request) => {
     }
 
     return new Response(
-      JSON.stringify({ success: true, user: userData[0], emailSent }),
+      JSON.stringify({ success: true, user: userData[0], emailSent, emailError: emailError || undefined }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err) {

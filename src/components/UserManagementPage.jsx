@@ -79,7 +79,7 @@ export default function UserManagementPage() {
     try {
       setLoading(true)
       const schoolName = getSchoolName(targetOrgId)
-      const newUser = await userService.createUser(
+      const result = await userService.createUser(
         formData.email,
         formData.firstName,
         formData.lastName,
@@ -88,9 +88,16 @@ export default function UserManagementPage() {
         schoolName
       )
 
-      setUsers([newUser, ...users])
+      setUsers([result.user, ...users])
       setFormData({ email: '', firstName: '', lastName: '', role: 'Viewer', organizationId: organizationId })
       setShowCreateForm(false)
+
+      // Show email status
+      if (result.emailSent) {
+        setError('')
+      } else {
+        setError(`Gebruiker aangemaakt, maar uitnodigingsmail niet verstuurd: ${result.emailError || 'Onbekende fout'}`)
+      }
     } catch (err) {
       setError(err.message || 'Fout bij het aanmaken van gebruiker')
     } finally {

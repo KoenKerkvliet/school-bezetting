@@ -41,7 +41,9 @@ export async function createUser(email, firstName, lastName, role, organizationI
     throw new Error(`Failed to create user: ${result.error || response.statusText}`)
   }
 
-  return result.user || result
+  // Return user data + email status
+  const user = result.user || result
+  return { user, emailSent: result.emailSent, emailError: result.emailError }
 }
 
 /**
@@ -103,27 +105,30 @@ export async function updateUserRole(userId, newRole, organizationId) {
 
 /**
  * Delete user (admin only)
+ * Server-side via Edge Function to safely use admin API for auth deletion
  * @param {string} userId
  * @param {string} organizationId
  * @returns {Promise}
  */
 export async function deleteUser(userId, organizationId) {
-  // Delete from users table (cascade will remove profiles)
-  const { error } = await supabase
-    .from('users')
-    .delete()
-    .eq('id', userId)
-    .eq('organization_id', organizationId)
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+  const { data: { session } } = await supabase.auth.getSession()
 
-  if (error) throw new Error(error.message)
-
-  // Also delete from auth (requires service role)
-  // This would be done on backend for security
-
-  // Log to audit
-  await logAuditAction(organizationId, null, 'DELETE_USER', 'user', userId, {
-    deleted: true,
+  const response = await fetch(`${supabaseUrl}/functions/v1/delete-user`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${session?.access_token}`,
+      'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+    },
+    body: JSON.stringify({ userId, organizationId }),
   })
+
+  const result = await response.json()
+
+  if (!response.ok) {
+    throw new Error(result.error || 'Failed to delete user')
+  }
 }
 
 /**
