@@ -160,14 +160,18 @@ export function AppProvider({ children }) {
 
     // 2. Write to Supabase in background
     if (organizationId && action.type !== 'SET_INITIAL_STATE') {
+      console.log('[AppContext] Syncing', action.type, 'to Supabase...');
       writeToSupabase(organizationId, action)
         .then(() => {
+          console.log('[AppContext]', action.type, 'synced successfully');
           setSyncError(null);
         })
         .catch(err => {
-          console.error('[Sync]', action.type, 'failed:', err.message || err);
+          console.error('[AppContext]', action.type, 'sync failed:', err.message || err);
           setSyncError(`${action.type}: ${err.message || err}`);
         });
+    } else if (!organizationId && action.type !== 'SET_INITIAL_STATE') {
+      console.warn('[AppContext] Not syncing:', action.type, '— organizationId is null');
     }
   }, [organizationId]);
 
@@ -264,9 +268,10 @@ async function writeToSupabase(orgId, action) {
       if (error) throw error;
       // Also save schedule rows
       const schedRows = appStaffToScheduleRows(p);
+      console.log('[Sync] ADD_STAFF schedule rows:', schedRows.length);
       if (schedRows.length > 0) {
         const { error: sErr } = await supabase.from('staff_schedule').insert(schedRows);
-        if (sErr) console.warn('[Sync] Schedule insert warning:', sErr.message);
+        if (sErr) throw new Error(`Schedule save failed: ${sErr.message}`);
       }
       return;
     }
@@ -281,7 +286,7 @@ async function writeToSupabase(orgId, action) {
       const schedRows = appStaffToScheduleRows(p);
       if (schedRows.length > 0) {
         const { error: sErr } = await supabase.from('staff_schedule').insert(schedRows);
-        if (sErr) console.warn('[Sync] Schedule update warning:', sErr.message);
+        if (sErr) throw new Error(`Schedule update failed: ${sErr.message}`);
       }
       return;
     }
