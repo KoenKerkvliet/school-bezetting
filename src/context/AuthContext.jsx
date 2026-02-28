@@ -23,6 +23,37 @@ async function fetchUserData(userId) {
   }
 }
 
+// Helper: find organization (for users without a users table record)
+async function findOrganization() {
+  try {
+    const { data, error } = await supabase
+      .from('organizations')
+      .select('id')
+      .limit(1)
+      .single()
+    return error ? null : data?.id
+  } catch {
+    return null
+  }
+}
+
+// Helper: auto-create user record if missing (best-effort, never throws)
+async function ensureUserRecord(userId, email, orgId) {
+  try {
+    const { error } = await supabase
+      .from('users')
+      .upsert([{
+        id: userId,
+        email: email,
+        organization_id: orgId,
+        role: 'Admin',
+      }], { onConflict: 'id' })
+    if (error) console.warn('[Auth] Could not create user record:', error.message)
+  } catch (err) {
+    console.warn('[Auth] ensureUserRecord failed:', err.message)
+  }
+}
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [userData, setUserData] = useState(null)
@@ -35,12 +66,29 @@ export function AuthProvider({ children }) {
   const [error, setError] = useState(null)
 
   // Apply user data (role, org, permissions) — called async after login
-  const applyUserData = useCallback((ud) => {
+  const applyUserData = useCallback(async (ud, authUser) => {
     if (ud) {
+      // User record found — use it
       setUserData(ud)
       setRole(ud.role)
       setOrganizationId(ud.organization_id)
       setPermissions(userService.getRolePermissions(ud.role))
+      console.log('[Auth] User data loaded, orgId:', ud.organization_id)
+    } else if (authUser) {
+      // No user record — find org and auto-create record
+      console.log('[Auth] No user record found, looking up organization...')
+      const orgId = await findOrganization()
+      if (orgId) {
+        setOrganizationId(orgId)
+        setRole('Admin')
+        setPermissions(userService.getRolePermissions('Admin'))
+        console.log('[Auth] Using org fallback:', orgId)
+
+        // Try to create the missing user record for next time
+        await ensureUserRecord(authUser.id, authUser.email, orgId)
+      } else {
+        console.warn('[Auth] No organization found in database')
+      }
     }
   }, [])
 
@@ -68,7 +116,8 @@ export function AuthProvider({ children }) {
           setError(null)
 
           // Fetch user data in background (role, org, permissions)
-          fetchUserData(session.user.id).then(applyUserData)
+          // Pass authUser so we can create record if missing
+          fetchUserData(session.user.id).then(ud => applyUserData(ud, session.user))
         } else {
           clearAuth()
         }
