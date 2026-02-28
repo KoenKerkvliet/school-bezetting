@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
 import UserManagementPage from './UserManagementPage'
+import SchoolManagementPage from './SchoolManagementPage'
 import * as organizationService from '../services/organizationService'
 
 export default function AdminDashboard({ onBack }) {
@@ -98,6 +99,16 @@ export default function AdminDashboard({ onBack }) {
           >
             Gebruikers beheren
           </button>
+          <button
+            onClick={() => setActiveTab('schools')}
+            className={`pb-4 px-2 font-medium transition-colors ${
+              activeTab === 'schools'
+                ? 'text-blue-600 border-b-2 border-blue-600'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            Scholen beheren
+          </button>
         </div>
 
         {/* Overview Tab */}
@@ -166,6 +177,9 @@ export default function AdminDashboard({ onBack }) {
 
         {/* Users Tab */}
         {activeTab === 'users' && <UserManagementPage />}
+
+        {/* Schools Tab */}
+        {activeTab === 'schools' && <SchoolManagementPage />}
       </div>
     </div>
   )

@@ -1,14 +1,17 @@
 import React, { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
 import * as userService from '../services/userService'
+import * as organizationService from '../services/organizationService'
 
 export default function UserManagementPage() {
   const { organizationId } = useAuth()
   const [users, setUsers] = useState([])
+  const [schools, setSchools] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [editingUserId, setEditingUserId] = useState(null)
+  const [editingSchoolUserId, setEditingSchoolUserId] = useState(null)
 
   // Form state
   const [formData, setFormData] = useState({
@@ -16,35 +19,62 @@ export default function UserManagementPage() {
     firstName: '',
     lastName: '',
     role: 'Viewer',
+    organizationId: '',
   })
 
   const roles = ['Admin', 'Editor', 'Viewer']
 
-  // Load users
+  // Load users and schools
   useEffect(() => {
-    const loadUsers = async () => {
+    const loadData = async () => {
       try {
         setLoading(true)
-        const userList = await userService.listOrgUsers(organizationId)
+        const [userList, schoolList] = await Promise.all([
+          userService.listAllUsers(),
+          organizationService.listOrganizations(),
+        ])
         setUsers(userList)
+        setSchools(schoolList)
+        setFormData((prev) => ({ ...prev, organizationId: organizationId || '' }))
         setError('')
       } catch (err) {
-        setError(err.message)
-        console.error('Error loading users:', err)
+        // Fallback: if listAllUsers fails (RLS), try org-scoped
+        try {
+          const [userList, schoolList] = await Promise.all([
+            userService.listOrgUsers(organizationId),
+            organizationService.listOrganizations(),
+          ])
+          setUsers(userList)
+          setSchools(schoolList)
+          setFormData((prev) => ({ ...prev, organizationId: organizationId || '' }))
+          setError('')
+        } catch (fallbackErr) {
+          setError(fallbackErr.message)
+          console.error('Error loading data:', fallbackErr)
+        }
       } finally {
         setLoading(false)
       }
     }
 
     if (organizationId) {
-      loadUsers()
+      loadData()
     }
   }, [organizationId])
+
+  // Create school map for quick lookup
+  const schoolMap = Object.fromEntries(schools.map((s) => [s.id, s]))
+
+  const getSchoolName = (orgId) => {
+    return schoolMap[orgId]?.name || 'Onbekend'
+  }
 
   // Create new user
   const handleCreateUser = async (e) => {
     e.preventDefault()
     setError('')
+
+    const targetOrgId = formData.organizationId || organizationId
 
     try {
       setLoading(true)
@@ -53,11 +83,11 @@ export default function UserManagementPage() {
         formData.firstName,
         formData.lastName,
         formData.role,
-        organizationId
+        targetOrgId
       )
 
       setUsers([newUser, ...users])
-      setFormData({ email: '', firstName: '', lastName: '', role: 'Viewer' })
+      setFormData({ email: '', firstName: '', lastName: '', role: 'Viewer', organizationId: organizationId })
       setShowCreateForm(false)
     } catch (err) {
       setError(err.message || 'Fout bij het aanmaken van gebruiker')
@@ -73,6 +103,18 @@ export default function UserManagementPage() {
       const updatedUser = await userService.updateUserRole(userId, newRole, organizationId)
       setUsers(users.map((u) => (u.id === userId ? updatedUser : u)))
       setEditingUserId(null)
+    } catch (err) {
+      setError(err.message)
+    }
+  }
+
+  // Update user organization
+  const handleUpdateOrganization = async (userId, newOrgId) => {
+    try {
+      setError('')
+      const updatedUser = await userService.updateUserOrganization(userId, newOrgId, organizationId)
+      setUsers(users.map((u) => (u.id === userId ? { ...u, organization_id: newOrgId } : u)))
+      setEditingSchoolUserId(null)
     } catch (err) {
       setError(err.message)
     }
@@ -175,6 +217,23 @@ export default function UserManagementPage() {
                 ))}
               </select>
             </div>
+
+            {/* School selection */}
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">School *</label>
+              <select
+                value={formData.organizationId}
+                onChange={(e) => setFormData({ ...formData, organizationId: e.target.value })}
+                disabled={loading}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
+              >
+                {schools.map((school) => (
+                  <option key={school.id} value={school.id}>
+                    {school.name}{school.id === organizationId ? ' (huidige school)' : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
           <div className="flex gap-2 justify-end">
@@ -217,6 +276,9 @@ export default function UserManagementPage() {
                     Email
                   </th>
                   <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
+                    School
+                  </th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
                     Rol
                   </th>
                   <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
@@ -236,6 +298,31 @@ export default function UserManagementPage() {
                       </div>
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-600">{user.email}</td>
+                    <td className="px-6 py-4 text-sm">
+                      {editingSchoolUserId === user.id ? (
+                        <select
+                          value={user.organization_id || ''}
+                          onChange={(e) => handleUpdateOrganization(user.id, e.target.value)}
+                          className="px-2 py-1 border border-gray-300 rounded text-sm"
+                          autoFocus
+                          onBlur={() => setEditingSchoolUserId(null)}
+                        >
+                          {schools.map((school) => (
+                            <option key={school.id} value={school.id}>
+                              {school.name}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <div
+                          onClick={() => setEditingSchoolUserId(user.id)}
+                          className="cursor-pointer inline-block px-2 py-1 bg-green-100 text-green-700 rounded text-sm font-medium hover:bg-green-200"
+                          title="Klik om school te wijzigen"
+                        >
+                          {getSchoolName(user.organization_id)}
+                        </div>
+                      )}
+                    </td>
                     <td className="px-6 py-4 text-sm">
                       {editingUserId === user.id ? (
                         <select
@@ -290,7 +377,7 @@ export default function UserManagementPage() {
       <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
         <p className="text-blue-800 text-sm">
           <strong>💡 Info:</strong> Wanneer je een nieuwe gebruiker aanmaakt, ontvangt deze een email met
-          instructies om een wachtwoord in te stellen. Klik op de rol om deze aan te passen.
+          instructies om een wachtwoord in te stellen. Klik op de rol of school om deze aan te passen.
         </p>
       </div>
     </div>

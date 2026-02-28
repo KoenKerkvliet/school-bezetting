@@ -114,6 +114,68 @@ export async function getOrganizationWithStats(organizationId) {
 }
 
 /**
+ * List all organizations
+ * @returns {Promise<array>}
+ */
+export async function listOrganizations() {
+  const { data, error } = await supabase
+    .from('organizations')
+    .select('*')
+    .order('name', { ascending: true })
+
+  if (error) throw new Error(error.message)
+  return data || []
+}
+
+/**
+ * List all organizations with stats (user/staff/group counts)
+ * @returns {Promise<array>}
+ */
+export async function listOrganizationsWithStats() {
+  const orgs = await listOrganizations()
+
+  // Fetch stats for all orgs in parallel
+  const orgsWithStats = await Promise.all(
+    orgs.map(async (org) => {
+      const [
+        { count: userCount },
+        { count: staffCount },
+        { count: groupCount },
+      ] = await Promise.all([
+        supabase.from('users').select('*', { count: 'exact', head: true }).eq('organization_id', org.id),
+        supabase.from('staff').select('*', { count: 'exact', head: true }).eq('organization_id', org.id),
+        supabase.from('groups').select('*', { count: 'exact', head: true }).eq('organization_id', org.id),
+      ])
+
+      return {
+        ...org,
+        stats: {
+          users: userCount || 0,
+          staff: staffCount || 0,
+          groups: groupCount || 0,
+        },
+      }
+    })
+  )
+
+  return orgsWithStats
+}
+
+/**
+ * Delete organization
+ * @param {string} organizationId
+ * @returns {Promise}
+ */
+export async function deleteOrganization(organizationId) {
+  const { error } = await supabase
+    .from('organizations')
+    .delete()
+    .eq('id', organizationId)
+
+  if (error) throw new Error(error.message)
+}
+
+/**
  * Get user's current organization from users table
  * @param {string} userId
  * @returns {Promise<object>}

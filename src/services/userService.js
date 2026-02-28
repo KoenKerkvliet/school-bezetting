@@ -149,6 +149,44 @@ export async function deleteUser(userId, organizationId) {
 }
 
 /**
+ * Update user's organization (admin only)
+ * @param {string} userId
+ * @param {string} newOrganizationId
+ * @param {string} currentOrganizationId - for audit logging
+ * @returns {Promise<object>}
+ */
+export async function updateUserOrganization(userId, newOrganizationId, currentOrganizationId) {
+  const { data, error } = await supabase
+    .from('users')
+    .update({ organization_id: newOrganizationId, updated_at: new Date() })
+    .eq('id', userId)
+    .select()
+
+  if (error) throw new Error(error.message)
+
+  // Log to audit
+  await logAuditAction(currentOrganizationId, userId, 'UPDATE_USER_ORGANIZATION', 'user', userId, {
+    newOrganizationId,
+  })
+
+  return data[0]
+}
+
+/**
+ * List all users across all organizations (admin only)
+ * @returns {Promise<array>}
+ */
+export async function listAllUsers() {
+  const { data, error } = await supabase
+    .from('users')
+    .select('*, profiles(*)')
+    .order('created_at', { ascending: false })
+
+  if (error) throw new Error(error.message)
+  return data || []
+}
+
+/**
  * Disable user without deleting
  * @param {string} userId
  * @param {string} organizationId
