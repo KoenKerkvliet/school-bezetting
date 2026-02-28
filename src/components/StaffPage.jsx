@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { format, parseISO, isSameDay } from 'date-fns';
 import { nl } from 'date-fns/locale';
 import {
@@ -209,7 +209,7 @@ export default function StaffPage() {
                   <h2 className={`text-sm font-bold uppercase tracking-wide ${section.color}`}>{section.label}</h2>
                   <span className={`text-xs font-medium rounded-full px-2 py-0.5 ${section.bg} ${section.color} ${section.border} border`}>{sectionStaff.length}</span>
                 </div>
-                <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
           {sectionStaff.map(member => {
             const memberAbsences = getAbsences(member.id);
             const memberTimeAbsences = getTimeAbsencesForStaff(member.id);
@@ -236,7 +236,7 @@ export default function StaffPage() {
             return (
               <div
                 key={member.id}
-                className={`bg-white rounded-xl border border-l-4 shadow-sm overflow-hidden transition-all ${borderColor} ${
+                className={`bg-white rounded-xl border border-l-4 shadow-sm transition-all ${borderColor} ${
                   todayAbsent ? 'border-t-amber-300 border-r-amber-300 border-b-amber-300' : 'border-t-gray-200 border-r-gray-200 border-b-gray-200'
                 }`}
               >
@@ -297,53 +297,16 @@ export default function StaffPage() {
                           {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                         </button>
                       )}
-                      <div className="relative">
-                        <button
-                          onClick={() => setOpenMenu(isMenuOpen ? null : member.id)}
-                          className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-                          title="Acties"
-                        >
-                          <MoreVertical className="w-4 h-4" />
-                        </button>
-
-                        {/* Dropdown menu */}
-                        {isMenuOpen && (
-                          <>
-                            <div className="fixed inset-0 z-10" onClick={() => setOpenMenu(null)} />
-                            <div className="absolute right-0 top-full mt-1 z-20 bg-white rounded-lg shadow-lg border border-gray-200 py-1 w-52">
-                              <button
-                                onClick={() => { openAbsenceModal(member.id); setOpenMenu(null); }}
-                                className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 hover:bg-amber-50 hover:text-amber-700 transition-colors"
-                              >
-                                <CalendarX className="w-4 h-4" />
-                                Dag uitroosteren
-                              </button>
-                              <button
-                                onClick={() => { openTimeAbsenceModal(member.id); setOpenMenu(null); }}
-                                className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 hover:bg-orange-50 hover:text-orange-700 transition-colors"
-                              >
-                                <Clock className="w-4 h-4" />
-                                Tijdelijk uitroosteren
-                              </button>
-                              <div className="border-t border-gray-100 my-1" />
-                              <button
-                                onClick={() => { openEditStaff(member); setOpenMenu(null); }}
-                                className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors"
-                              >
-                                <Pencil className="w-4 h-4" />
-                                Bewerken
-                              </button>
-                              <button
-                                onClick={() => { deleteStaff(member.id); setOpenMenu(null); }}
-                                className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                                Verwijderen
-                              </button>
-                            </div>
-                          </>
-                        )}
-                      </div>
+                      <StaffMenu
+                        memberId={member.id}
+                        isOpen={isMenuOpen}
+                        onToggle={() => setOpenMenu(isMenuOpen ? null : member.id)}
+                        onClose={() => setOpenMenu(null)}
+                        onAbsence={() => { openAbsenceModal(member.id); setOpenMenu(null); }}
+                        onTimeAbsence={() => { openTimeAbsenceModal(member.id); setOpenMenu(null); }}
+                        onEdit={() => { openEditStaff(member); setOpenMenu(null); }}
+                        onDelete={() => { deleteStaff(member.id); setOpenMenu(null); }}
+                      />
                     </div>
                   </div>
                 </div>
@@ -467,6 +430,76 @@ export default function StaffPage() {
         />
       )}
     </div>
+  );
+}
+
+// ── Staff Menu (fixed-position dropdown) ──────────────────────────────────
+
+function StaffMenu({ memberId, isOpen, onToggle, onClose, onAbsence, onTimeAbsence, onEdit, onDelete }) {
+  const btnRef = useRef(null);
+  const [pos, setPos] = useState({ top: 0, right: 0 });
+
+  useEffect(() => {
+    if (isOpen && btnRef.current) {
+      const rect = btnRef.current.getBoundingClientRect();
+      setPos({
+        top: rect.bottom + 4,
+        right: window.innerWidth - rect.right,
+      });
+    }
+  }, [isOpen]);
+
+  return (
+    <>
+      <button
+        ref={btnRef}
+        onClick={onToggle}
+        className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+        title="Acties"
+      >
+        <MoreVertical className="w-4 h-4" />
+      </button>
+
+      {isOpen && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={onClose} />
+          <div
+            className="fixed z-50 bg-white rounded-lg shadow-lg border border-gray-200 py-1 w-52"
+            style={{ top: pos.top, right: pos.right }}
+          >
+            <button
+              onClick={onAbsence}
+              className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 hover:bg-amber-50 hover:text-amber-700 transition-colors"
+            >
+              <CalendarX className="w-4 h-4" />
+              Dag uitroosteren
+            </button>
+            <button
+              onClick={onTimeAbsence}
+              className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 hover:bg-orange-50 hover:text-orange-700 transition-colors"
+            >
+              <Clock className="w-4 h-4" />
+              Tijdelijk uitroosteren
+            </button>
+            <div className="border-t border-gray-100 my-1" />
+            <button
+              onClick={onEdit}
+              className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors"
+            >
+              <Pencil className="w-4 h-4" />
+              Bewerken
+            </button>
+            <button
+              onClick={onDelete}
+              className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+            >
+              <Trash2 className="w-4 h-4" />
+              Verwijderen
+            </button>
+          </div>
+        </>
+      )}
+    </>
   );
 }
 
