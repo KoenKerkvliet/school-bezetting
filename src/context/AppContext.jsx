@@ -16,6 +16,7 @@ const emptyState = {
   staff: [],
   absences: [],
   timeAbsences: [],
+  staffDateAssignments: [], // Date-specific staff assignments (replacements, overrides)
 };
 
 function reducer(state, action) {
@@ -67,6 +68,19 @@ function reducer(state, action) {
     case 'DELETE_TIME_ABSENCE':
       return { ...state, timeAbsences: (state.timeAbsences || []).filter(a => a.id !== action.payload) };
 
+    case 'ADD_STAFF_DATE_ASSIGNMENT':
+      return { ...state, staffDateAssignments: [...(state.staffDateAssignments || []), action.payload] };
+    case 'DELETE_STAFF_DATE_ASSIGNMENT':
+      return { ...state, staffDateAssignments: (state.staffDateAssignments || []).filter(a => a.id !== action.payload) };
+    case 'DELETE_STAFF_DATE_ASSIGNMENTS_BY_DATE_AND_STAFF':
+      // Delete all assignments for a specific staff on a specific date
+      return {
+        ...state,
+        staffDateAssignments: (state.staffDateAssignments || []).filter(
+          a => !(a.date === action.payload.date && a.staffId === action.payload.staffId)
+        ),
+      };
+
     default:
       return state;
   }
@@ -110,6 +124,7 @@ export function AppProvider({ children }) {
                 staff: data.staff || [],
                 absences: data.absences || [],
                 timeAbsences: data.timeAbsences || [],
+                staffDateAssignments: data.staffDateAssignments || [],
               }
             });
             console.log('[AppContext] Loaded from Supabase:', data.groups?.length, 'groups,', data.staff?.length, 'staff');
@@ -332,6 +347,24 @@ async function writeToSupabase(orgId, action) {
     case 'DELETE_TIME_ABSENCE': {
       const { error } = await supabase.from('time_absences').delete().eq('id', p);
       if (error) throw error;
+      return;
+    }
+
+    // ── Date-specific staff assignments (replacements) ──
+    case 'ADD_STAFF_DATE_ASSIGNMENT': {
+      // Date-specific assignments are stored locally for now
+      // Could be extended to sync to Supabase with a new table
+      console.log('[Sync] ADD_STAFF_DATE_ASSIGNMENT (local only):', p);
+      return;
+    }
+    case 'DELETE_STAFF_DATE_ASSIGNMENT': {
+      // Date-specific assignments are stored locally for now
+      console.log('[Sync] DELETE_STAFF_DATE_ASSIGNMENT (local only):', p);
+      return;
+    }
+    case 'DELETE_STAFF_DATE_ASSIGNMENTS_BY_DATE_AND_STAFF': {
+      // Date-specific assignments are stored locally for now
+      console.log('[Sync] DELETE_STAFF_DATE_ASSIGNMENTS_BY_DATE_AND_STAFF (local only):', p);
       return;
     }
 

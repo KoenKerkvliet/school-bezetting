@@ -86,8 +86,27 @@ export default function Dashboard() {
   /** Staff directly assigned to a group on a specific date */
   function getGroupStaff(groupId, date) {
     const dayKey = getDayKey(date);
-    return staff
+    const dateStr = formatLocalDate(date);
+
+    // Get staff from weekly schedule
+    const weeklyStaff = staff
       .filter(s => s.schedule[dayKey]?.type === 'group' && s.schedule[dayKey]?.groupId === groupId)
+      .map(s => ({ ...s, isReplacement: false }));
+
+    // Get staff from date-specific assignments
+    const dateAssignments = (state.staffDateAssignments || [])
+      .filter(a => a.date === dateStr && a.groupId === groupId);
+
+    const dateAssignmentStaffIds = new Set(dateAssignments.map(a => a.staffId));
+
+    // Add staff from date assignments, excluding those already in weekly schedule
+    const dateAssignmentStaff = dateAssignments
+      .map(a => staff.find(s => s.id === a.staffId))
+      .filter(s => s && !weeklyStaff.some(ws => ws.id === s.id))
+      .map(s => ({ ...s, isReplacement: true }));
+
+    // Combine and map
+    return [...weeklyStaff, ...dateAssignmentStaff]
       .map(s => ({
         ...s,
         absent: isAbsent(s.id, date),
@@ -535,6 +554,7 @@ function DayDetailModal({
                         <GroupDetailCard
                           key={group.id}
                           group={group}
+                          date={date}
                           staffList={getGroupStaff(group.id, date)}
                           unmanned={isGroupUnmanned(group.id, date)}
                           onStaffClick={setStaffAction}
@@ -590,6 +610,7 @@ function DayDetailModal({
                       <GroupDetailCard
                         key={group.id}
                         group={group}
+                        date={date}
                         staffList={getGroupStaff(group.id, date)}
                         unmanned={isGroupUnmanned(group.id, date)}
                       />
@@ -669,9 +690,10 @@ function DayDetailModal({
   );
 }
 
-function GroupDetailCard({ group, staffList, unmanned, onStaffClick }) {
+function GroupDetailCard({ group, date, staffList, unmanned, onStaffClick }) {
   const hasAbsent = staffList.some(s => s.absent);
   const hasTimeAbsent = staffList.some(s => !s.absent && s.timeAbsences?.length > 0);
+  const hasReplacement = staffList.some(s => s.isReplacement === true);
 
   return (
     <div
@@ -681,7 +703,7 @@ function GroupDetailCard({ group, staffList, unmanned, onStaffClick }) {
           : (hasAbsent || hasTimeAbsent)
           ? 'bg-amber-50 border-amber-200'
           : 'bg-white border-gray-200'
-      }`}
+      } ${hasReplacement ? 'border-l-4 border-l-orange-400' : ''}`}
     >
       {/* Group name + times */}
       <div className="flex items-center gap-2 mb-1.5">
@@ -807,36 +829,29 @@ function GroupPopup({ group, date, staffList, allStaff, unitStaff, unit, unmanne
   });
 
   function addReplacement(staffId) {
+    // Create a date-specific assignment for this replacement
+    const dateStr = formatLocalDate(date);
     dispatch({
-      type: 'UPDATE_STAFF',
+      type: 'ADD_STAFF_DATE_ASSIGNMENT',
       payload: {
-        ...allStaff.find(s => s.id === staffId),
-        schedule: {
-          ...allStaff.find(s => s.id === staffId)?.schedule,
-          [dayKey]: {
-            type: 'group',
-            groupId: group.id,
-          },
-        },
+        id: generateId(),
+        staffId,
+        groupId: group.id,
+        date: dateStr,
+        type: 'replacement',
       },
     });
     setShowReplacementMode(false);
   }
 
   function removeStaffFromGroup(staffId) {
-    const staff = allStaff.find(s => s.id === staffId);
-    if (!staff) return;
-
+    // Remove the date-specific assignment for this date
+    const dateStr = formatLocalDate(date);
     dispatch({
-      type: 'UPDATE_STAFF',
+      type: 'DELETE_STAFF_DATE_ASSIGNMENTS_BY_DATE_AND_STAFF',
       payload: {
-        ...staff,
-        schedule: {
-          ...staff.schedule,
-          [dayKey]: {
-            type: 'none',
-          },
-        },
+        date: dateStr,
+        staffId,
       },
     });
   }
