@@ -212,6 +212,8 @@ export function dbStaffDateAssignmentToApp(db) {
     groupId: db.group_id,
     date: db.date,
     type: db.type,
+    startTime: db.start_time || null,
+    endTime: db.end_time || null,
   }
 }
 
@@ -222,6 +224,8 @@ export function appStaffDateAssignmentToDb(app, orgId) {
     group_id: app.groupId,
     date: app.date,
     type: app.type,
+    start_time: app.startTime || null,
+    end_time: app.endTime || null,
     organization_id: orgId,
   }
 }

@@ -39,6 +39,11 @@ function capitalize(str) {
   return str.charAt(0).toUpperCase() + str.slice(1);
 }
 
+/** Check if two HH:MM time ranges overlap */
+function timeRangesOverlap(start1, end1, start2, end2) {
+  return start1 < end2 && start2 < end1;
+}
+
 export default function Dashboard() {
   const { state, dispatch } = useApp();
   const { groups, units, staff, absences, timeAbsences } = state;
@@ -91,19 +96,27 @@ export default function Dashboard() {
     // Get staff from weekly schedule
     const weeklyStaff = staff
       .filter(s => s.schedule[dayKey]?.type === 'group' && s.schedule[dayKey]?.groupId === groupId)
-      .map(s => ({ ...s, isReplacement: false }));
+      .map(s => ({ ...s, isReplacement: false, replacementStartTime: null, replacementEndTime: null, assignmentId: null }));
 
     // Get staff from date-specific assignments
     const dateAssignments = (state.staffDateAssignments || [])
       .filter(a => a.date === dateStr && a.groupId === groupId);
 
-    const dateAssignmentStaffIds = new Set(dateAssignments.map(a => a.staffId));
-
     // Add staff from date assignments, excluding those already in weekly schedule
     const dateAssignmentStaff = dateAssignments
-      .map(a => staff.find(s => s.id === a.staffId))
-      .filter(s => s && !weeklyStaff.some(ws => ws.id === s.id))
-      .map(s => ({ ...s, isReplacement: true }));
+      .map(a => {
+        const staffMember = staff.find(s => s.id === a.staffId);
+        if (!staffMember) return null;
+        if (weeklyStaff.some(ws => ws.id === staffMember.id)) return null;
+        return {
+          ...staffMember,
+          isReplacement: true,
+          replacementStartTime: a.startTime || null,
+          replacementEndTime: a.endTime || null,
+          assignmentId: a.id,
+        };
+      })
+      .filter(Boolean);
 
     // Combine and map
     return [...weeklyStaff, ...dateAssignmentStaff]
@@ -325,8 +338,9 @@ export default function Dashboard() {
                     const unmanned = isGroupUnmanned(group.id, date);
                     const hasAbsent = gs.some(s => s.absent);
                     const hasTimeAbsent = gs.some(s => !s.absent && s.timeAbsences?.length > 0);
-                    const availableStaffCount = gs.filter(s => !s.absent).length;
-                    const isOverstaffed = availableStaffCount > 1;
+                    // Only count whole-day staff for overstaffing (time-limited replacements don't count)
+                    const wholeDayStaffCount = gs.filter(s => !s.absent && !s.replacementStartTime).length;
+                    const isOverstaffed = wholeDayStaffCount > 1;
 
                     return (
                       <div
@@ -363,6 +377,9 @@ export default function Dashboard() {
                                   )}
                                   <span className={s.absent ? 'line-through text-amber-600' : 'text-gray-500'}>
                                     {s.name.split(' ')[0]}
+                                    {s.replacementStartTime && (
+                                      <span className="text-indigo-500 text-[9px] ml-0.5">({s.replacementStartTime}–{s.replacementEndTime})</span>
+                                    )}
                                   </span>
                                 </span>
                               ))}
@@ -453,6 +470,7 @@ export default function Dashboard() {
           unmanned={isGroupUnmanned(selectedGroup.group.id, selectedGroup.date)}
           absences={absences}
           timeAbsences={timeAbsences || []}
+          staffDateAssignments={state.staffDateAssignments || []}
           dispatch={dispatch}
           onClose={() => setSelectedGroup(null)}
         />
@@ -785,9 +803,10 @@ function GroupDetailCard({ group, date, staffList, unmanned, onStaffClick }) {
 
 // ── Single group popup ─────────────────────────────────────────────────────
 
-function GroupPopup({ group, date, staffList, allStaff, unitStaff, unit, unmanned, absences, timeAbsences, dispatch, onClose }) {
+function GroupPopup({ group, date, staffList, allStaff, unitStaff, unit, unmanned, absences, timeAbsences, staffDateAssignments, dispatch, onClose }) {
   const [staffAction, setStaffAction] = useState(null);
   const [showReplacementMode, setShowReplacementMode] = useState(false);
+  const [replacementTimeSlot, setReplacementTimeSlot] = useState(null); // { startTime, endTime } or null for whole-day
   const dateLabel = capitalize(format(date, 'EEEE d MMMM yyyy', { locale: nl }));
   const today = isToday(date);
   const hasAbsent = staffList.some(s => s.absent);
@@ -797,9 +816,23 @@ function GroupPopup({ group, date, staffList, allStaff, unitStaff, unit, unmanne
   const dayKey = DAYS[date.getDay() - 1] || 'monday';
 
   // Split all staff into available and absent
+  const dateStr = formatLocalDate(date);
   const availableStaff = (allStaff || []).filter(s => {
-    // Not already in this group
-    if (staffList.some(st => st.id === s.id)) return false;
+    // Check if already in this group
+    const inGroupEntries = staffList.filter(st => st.id === s.id);
+    if (inGroupEntries.length > 0) {
+      if (replacementTimeSlot) {
+        // In time-slot mode: only exclude if whole-day presence or overlapping time slot
+        const blocked = inGroupEntries.some(st =>
+          (!st.replacementStartTime && !st.absent) ||
+          (st.replacementStartTime && timeRangesOverlap(st.replacementStartTime, st.replacementEndTime, replacementTimeSlot.startTime, replacementTimeSlot.endTime))
+        );
+        if (blocked) return false;
+        // Non-overlapping time slots in this group — still available for this slot
+      } else {
+        return false; // Whole-day mode: already in group = not available
+      }
+    }
 
     // Not absent
     if (absences.some(a => a.staff_id === s.id && isSameDay(new Date(a.date), date))) return false;
@@ -808,12 +841,24 @@ function GroupPopup({ group, date, staffList, allStaff, unitStaff, unit, unmanne
     const daySchedule = s.schedule?.[dayKey];
     const scheduleType = daySchedule?.type;
 
-    // Only show if they are:
-    // 1. Free (type='none' or no schedule)
-    // 2. OR Assigned to a unit (ambulant/ondersteuning, type='unit')
-    // But NOT if they are assigned to another group (type='group')
-    if (scheduleType === 'group') return false; // Assigned to another group
-    if (scheduleType === 'unit' || scheduleType === 'none' || scheduleType === undefined || scheduleType === null) return true; // Free or unit
+    // Assigned to another group via weekly schedule → not available
+    if (scheduleType === 'group') return false;
+
+    // Free or unit type → potentially available
+    if (scheduleType === 'unit' || scheduleType === 'none' || scheduleType === undefined || scheduleType === null) {
+      // In time-slot mode: also check date assignments on OTHER groups for overlap
+      if (replacementTimeSlot) {
+        const otherAssignments = (staffDateAssignments || []).filter(a =>
+          a.staffId === s.id && a.date === dateStr && a.groupId !== group.id
+        );
+        const blockedByOther = otherAssignments.some(a =>
+          !a.startTime || // whole-day assignment to another group
+          timeRangesOverlap(a.startTime, a.endTime, replacementTimeSlot.startTime, replacementTimeSlot.endTime)
+        );
+        if (blockedByOther) return false;
+      }
+      return true;
+    }
 
     return false;
   });
@@ -834,7 +879,7 @@ function GroupPopup({ group, date, staffList, allStaff, unitStaff, unit, unmanne
     return true;
   });
 
-  function addReplacement(staffId) {
+  function addReplacement(staffId, startTime = null, endTime = null) {
     // Create a date-specific assignment for this replacement
     const dateStr = formatLocalDate(date);
     dispatch({
@@ -845,21 +890,29 @@ function GroupPopup({ group, date, staffList, allStaff, unitStaff, unit, unmanne
         groupId: group.id,
         date: dateStr,
         type: 'replacement',
+        startTime,
+        endTime,
       },
     });
     setShowReplacementMode(false);
+    setReplacementTimeSlot(null);
   }
 
-  function removeStaffFromGroup(staffId) {
-    // Remove the date-specific assignment for this date
-    const dateStr = formatLocalDate(date);
-    dispatch({
-      type: 'DELETE_STAFF_DATE_ASSIGNMENTS_BY_DATE_AND_STAFF',
-      payload: {
-        date: dateStr,
-        staffId,
-      },
-    });
+  function removeStaffFromGroup(staffMember) {
+    if (staffMember.assignmentId) {
+      // Delete specific assignment by ID
+      dispatch({
+        type: 'DELETE_STAFF_DATE_ASSIGNMENT',
+        payload: staffMember.assignmentId,
+      });
+    } else {
+      // Fallback: delete all assignments for this staff on this date
+      const dateStr = formatLocalDate(date);
+      dispatch({
+        type: 'DELETE_STAFF_DATE_ASSIGNMENTS_BY_DATE_AND_STAFF',
+        payload: { date: dateStr, staffId: staffMember.id },
+      });
+    }
   }
 
   // Split staff into available and absent
@@ -953,12 +1006,18 @@ function GroupPopup({ group, date, staffList, allStaff, unitStaff, unit, unmanne
                           }
                           <span className={s.absent ? 'line-through' : ''}>{s.name}</span>
                           <span className="text-xs text-gray-400 ml-0.5">{s.role}</span>
+                          {s.isReplacement && s.replacementStartTime && (
+                            <span className="ml-1 text-xs px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-700 border border-indigo-200 font-medium flex items-center gap-0.5">
+                              <Clock className="w-2.5 h-2.5" />
+                              {s.replacementStartTime}–{s.replacementEndTime}
+                            </span>
+                          )}
                           {s.absent && (
                             <span className="ml-auto text-xs text-amber-600">({s.reason || 'afwezig'})</span>
                           )}
                         </button>
                         <button
-                          onClick={e => { e.stopPropagation(); removeStaffFromGroup(s.id); }}
+                          onClick={e => { e.stopPropagation(); removeStaffFromGroup(s); }}
                           className="flex-shrink-0 p-1 rounded hover:bg-white/30 text-current transition-colors"
                           title="Verwijderen uit groep"
                         >
@@ -972,6 +1031,17 @@ function GroupPopup({ group, date, staffList, allStaff, unitStaff, unit, unmanne
                               <Clock className="w-3 h-3 flex-shrink-0" />
                               <span className="font-medium">{ta.startTime}–{ta.endTime}</span>
                               {ta.reason && <span className="text-orange-500 truncate">({ta.reason})</span>}
+                              <button
+                                onClick={e => {
+                                  e.stopPropagation();
+                                  setReplacementTimeSlot({ startTime: ta.startTime, endTime: ta.endTime });
+                                  setShowReplacementMode(true);
+                                }}
+                                className="ml-auto text-blue-600 hover:text-blue-800 flex items-center gap-0.5 transition-colors"
+                                title="Vervanger regelen voor dit tijdslot"
+                              >
+                                <UserPlus className="w-3 h-3" />
+                              </button>
                             </div>
                           ))}
                         </div>
@@ -1015,7 +1085,10 @@ function GroupPopup({ group, date, staffList, allStaff, unitStaff, unit, unmanne
                 {/* Available staff */}
                 <div>
                   <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
-                    Beschikbare vervangers
+                    {replacementTimeSlot
+                      ? `Beschikbare vervangers (${replacementTimeSlot.startTime}–${replacementTimeSlot.endTime})`
+                      : 'Beschikbare vervangers'
+                    }
                   </h3>
                   {availableStaff.length === 0 ? (
                     <div className="text-xs text-gray-500 px-2 py-1.5 rounded bg-gray-50 border border-gray-200">
@@ -1029,7 +1102,7 @@ function GroupPopup({ group, date, staffList, allStaff, unitStaff, unit, unmanne
                         return (
                           <button
                             key={s.id}
-                            onClick={() => addReplacement(s.id)}
+                            onClick={() => addReplacement(s.id, replacementTimeSlot?.startTime || null, replacementTimeSlot?.endTime || null)}
                             className={`w-full text-left flex items-center gap-2 rounded-lg px-3 py-2 transition-colors text-sm font-medium ${
                               isUnitStaff
                                 ? 'bg-blue-50 text-blue-700 hover:bg-blue-100'
@@ -1067,7 +1140,7 @@ function GroupPopup({ group, date, staffList, allStaff, unitStaff, unit, unmanne
                         return (
                           <button
                             key={s.id}
-                            onClick={() => addReplacement(s.id)}
+                            onClick={() => addReplacement(s.id, replacementTimeSlot?.startTime || null, replacementTimeSlot?.endTime || null)}
                             disabled
                             className="w-full text-left flex items-center gap-2 rounded-lg px-3 py-2 transition-colors text-sm font-medium bg-gray-100 text-gray-500 opacity-60 cursor-not-allowed"
                           >
