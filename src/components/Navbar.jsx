@@ -26,7 +26,7 @@ export default function Navbar({ currentPage, setCurrentPage }) {
           <div className="flex items-center gap-6">
             <div className="flex items-center gap-2 font-bold text-lg">
               <GraduationCap className="w-6 h-6" />
-              <span>School Planning</span>
+              <span>School Bezetting</span>
             </div>
             <div className="flex gap-1">
               {navItems.map(({ id, label, icon: Icon }) => (

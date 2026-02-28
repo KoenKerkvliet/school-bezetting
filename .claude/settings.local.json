@@ -40,7 +40,12 @@
       "Bash(git push)",
       "Bash(git pull)",
       "Bash(git add .github/workflows/deploy.yml)",
-      "Bash(git add -A)"
+      "Bash(git add -A)",
+      "Bash(export PATH=\"/c/Program Files/nodejs:$PATH\")",
+      "Bash(npm run build)",
+      "Bash(git add src/context/AuthContext.jsx)",
+      "Bash(pkill -f \"npm run dev\")",
+      "Bash(git add src/services/authService.js)"
     ]
   }
 }
