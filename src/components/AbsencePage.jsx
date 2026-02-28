@@ -81,8 +81,10 @@ export default function AbsencePage({ onBack }) {
               <div
                 key={`${item.type}-${item.id}`}
                 className={`bg-white rounded-lg p-4 border-l-4 ${
-                  item.type === 'full'
+                  item.type === 'full' && item.reason === 'Ziek'
                     ? 'border-l-red-500'
+                    : item.type === 'full'
+                    ? 'border-l-blue-400'
                     : 'border-l-amber-500'
                 }`}
               >
@@ -119,7 +121,10 @@ export default function AbsencePage({ onBack }) {
 
                   <div className="flex flex-col items-end gap-2">
                     <div className="text-xs text-gray-400">
-                      {item.type === 'full' ? 'Ziekmeling' : 'Afwezigheid'}
+                      {item.type === 'full'
+                        ? (item.reason === 'Ziek' ? 'Ziekmelding' : 'Uitroostering')
+                        : 'Tijdelijke afwezigheid'
+                      }
                     </div>
                     <button
                       onClick={() => setConfirmDelete(item)}
