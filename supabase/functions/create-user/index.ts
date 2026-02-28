@@ -119,7 +119,8 @@ serve(async (req: Request) => {
     }
 
     // Send invite email via Edge Function
-    const resetUrl = `${req.headers.get("origin")}/set-password`;
+    const origin = req.headers.get("origin") || "http://localhost:5173";
+    const resetUrl = `${origin}/set-password`;
     try {
       await fetch(`${supabaseUrl}/functions/v1/send-email`, {
         method: "POST",
