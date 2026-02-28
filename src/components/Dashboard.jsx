@@ -787,9 +787,16 @@ function GroupPopup({ group, date, staffList, allStaff, unitStaff, unit, unmanne
     });
   }
 
-  const statusColor = unmanned
+  // Split staff into available and absent
+  const availableStaffList = staffList.filter(s => !s.absent);
+  const absentStaffList = staffList.filter(s => s.absent);
+
+  // Recalculate unmanned based on available staff only
+  const staffUnmanned = unmanned && availableStaffList.length === 0;
+
+  const statusColor = staffUnmanned
     ? { bg: 'bg-red-50', border: 'border-red-300', text: 'text-red-700' }
-    : (hasAbsent || hasTimeAbsent)
+    : availableStaffList.some(s => s.timeAbsences?.length > 0)
     ? { bg: 'bg-amber-50', border: 'border-amber-200', text: 'text-amber-700' }
     : { bg: 'bg-green-50', border: 'border-green-200', text: 'text-green-700' };
 
@@ -845,14 +852,14 @@ function GroupPopup({ group, date, staffList, allStaff, unitStaff, unit, unmanne
             {/* Staff */}
             <div>
               <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Leerkrachten</h3>
-              {staffList.length === 0 ? (
+              {availableStaffList.length === 0 ? (
                 <div className={`flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm font-semibold ${statusColor.bg} ${statusColor.border} border ${statusColor.text}`}>
                   <AlertTriangle className="w-4 h-4" />
                   Geen leerkracht ingepland!
                 </div>
               ) : (
                 <div className="space-y-1">
-                  {staffList.map(s => (
+                  {availableStaffList.map(s => (
                     <div key={s.id}>
                       <div
                         className={`flex items-center gap-2 rounded-lg px-3 py-2 transition-colors text-sm ${
@@ -896,10 +903,10 @@ function GroupPopup({ group, date, staffList, allStaff, unitStaff, unit, unmanne
                       )}
                     </div>
                   ))}
-                  {unmanned && staffList.length > 0 && (
+                  {staffUnmanned && (
                     <div className="flex items-center gap-1.5 text-red-600 text-xs font-semibold px-1 pt-1">
                       <AlertTriangle className="w-3.5 h-3.5" />
-                      Alle leerkrachten afwezig!
+                      Geen beschikbare leerkrachten!
                     </div>
                   )}
                 </div>
@@ -922,6 +929,27 @@ function GroupPopup({ group, date, staffList, allStaff, unitStaff, unit, unmanne
                       {s.absent ? <UserX className="w-3 h-3" /> : <Users className="w-3 h-3" />}
                       <span className={s.absent ? 'line-through' : ''}>{s.name}</span>
                       <span className="text-blue-400 ml-auto">{s.role}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Absent staff */}
+            {absentStaffList.length > 0 && (
+              <div>
+                <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+                  Afwezige leerkrachten
+                </h3>
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-2 space-y-0.5">
+                  {absentStaffList.map(s => (
+                    <div
+                      key={s.id}
+                      className="flex items-center gap-2 text-xs py-1 px-1 rounded text-amber-700"
+                    >
+                      <UserX className="w-3 h-3 flex-shrink-0" />
+                      <span className="line-through">{s.name}</span>
+                      <span className="text-amber-500 ml-auto font-medium">({s.reason || 'afwezig'})</span>
                     </div>
                   ))}
                 </div>
