@@ -1,186 +1,15 @@
-import React, { createContext, useContext, useReducer, useEffect, useState, useRef } from 'react';
+import React, { createContext, useContext, useReducer, useEffect, useState, useCallback } from 'react';
 import * as db from '../services/database';
-import * as planningService from '../services/planningService';
+import { supabase } from '../services/supabaseClient';
 import { useAuth } from './AuthContext';
 
 const AppContext = createContext(null);
 
-// Sample data to demonstrate functionality
-const initialState = {
-  groups: [
-    {
-      id: 'g1', name: 'Groep 1', unitId: 'u1',
-      startTime: '08:30', endTime: '14:30',
-      shortBreak: { start: '10:15', end: '10:30' },
-      longBreak: { start: '12:00', end: '12:45' },
-      color: '#f97316',
-    },
-    {
-      id: 'g2', name: 'Groep 2', unitId: 'u1',
-      startTime: '08:30', endTime: '14:30',
-      shortBreak: { start: '10:15', end: '10:30' },
-      longBreak: { start: '12:00', end: '12:45' },
-      color: '#eab308',
-    },
-    {
-      id: 'g3', name: 'Groep 3', unitId: 'u1',
-      startTime: '08:30', endTime: '14:30',
-      shortBreak: { start: '10:15', end: '10:30' },
-      longBreak: { start: '12:00', end: '12:45' },
-      color: '#22c55e',
-    },
-    {
-      id: 'g4', name: 'Groep 4', unitId: 'u2',
-      startTime: '08:30', endTime: '15:00',
-      shortBreak: { start: '10:15', end: '10:30' },
-      longBreak: { start: '12:15', end: '13:00' },
-      color: '#14b8a6',
-    },
-    {
-      id: 'g5', name: 'Groep 5', unitId: 'u2',
-      startTime: '08:30', endTime: '15:00',
-      shortBreak: { start: '10:15', end: '10:30' },
-      longBreak: { start: '12:15', end: '13:00' },
-      color: '#3b82f6',
-    },
-    {
-      id: 'g6', name: 'Groep 6', unitId: 'u2',
-      startTime: '08:30', endTime: '15:00',
-      shortBreak: { start: '10:15', end: '10:30' },
-      longBreak: { start: '12:15', end: '13:00' },
-      color: '#8b5cf6',
-    },
-    {
-      id: 'g7', name: 'Groep 7', unitId: 'u2',
-      startTime: '08:30', endTime: '15:00',
-      shortBreak: { start: '10:15', end: '10:30' },
-      longBreak: { start: '12:15', end: '13:00' },
-      color: '#ec4899',
-    },
-    {
-      id: 'g8', name: 'Groep 8', unitId: 'u2',
-      startTime: '08:30', endTime: '15:00',
-      shortBreak: { start: '10:15', end: '10:30' },
-      longBreak: { start: '12:15', end: '13:00' },
-      color: '#ef4444',
-    },
-  ],
-  units: [
-    { id: 'u1', name: 'Onderbouw', groupIds: ['g1', 'g2', 'g3'] },
-    { id: 'u2', name: 'Bovenbouw', groupIds: ['g4', 'g5', 'g6', 'g7', 'g8'] },
-  ],
-  staff: [
-    {
-      id: 's1', name: 'Anja de Vries', role: 'Leerkracht',
-      schedule: {
-        monday:    { type: 'group', groupId: 'g1' },
-        tuesday:   { type: 'group', groupId: 'g1' },
-        wednesday: { type: 'group', groupId: 'g1' },
-        thursday:  { type: 'group', groupId: 'g1' },
-        friday:    { type: 'group', groupId: 'g1' },
-      },
-    },
-    {
-      id: 's2', name: 'Bert Smit', role: 'Leerkracht',
-      schedule: {
-        monday:    { type: 'group', groupId: 'g2' },
-        tuesday:   { type: 'group', groupId: 'g2' },
-        wednesday: { type: 'none' },
-        thursday:  { type: 'group', groupId: 'g2' },
-        friday:    { type: 'group', groupId: 'g2' },
-      },
-    },
-    {
-      id: 's3', name: 'Clara Jansen', role: 'Leerkracht',
-      schedule: {
-        monday:    { type: 'group', groupId: 'g2' },
-        tuesday:   { type: 'none' },
-        wednesday: { type: 'group', groupId: 'g3' },
-        thursday:  { type: 'none' },
-        friday:    { type: 'group', groupId: 'g3' },
-      },
-    },
-    {
-      id: 's4', name: 'David Bakker', role: 'Leerkracht',
-      schedule: {
-        monday:    { type: 'group', groupId: 'g3' },
-        tuesday:   { type: 'group', groupId: 'g3' },
-        wednesday: { type: 'none' },
-        thursday:  { type: 'group', groupId: 'g3' },
-        friday:    { type: 'none' },
-      },
-    },
-    {
-      id: 's5', name: 'Emma Visser', role: 'Leerkracht',
-      schedule: {
-        monday:    { type: 'group', groupId: 'g4' },
-        tuesday:   { type: 'group', groupId: 'g4' },
-        wednesday: { type: 'group', groupId: 'g4' },
-        thursday:  { type: 'group', groupId: 'g4' },
-        friday:    { type: 'group', groupId: 'g4' },
-      },
-    },
-    {
-      id: 's6', name: 'Frank Mulder', role: 'Leerkracht',
-      schedule: {
-        monday:    { type: 'group', groupId: 'g5' },
-        tuesday:   { type: 'group', groupId: 'g5' },
-        wednesday: { type: 'group', groupId: 'g5' },
-        thursday:  { type: 'none' },
-        friday:    { type: 'group', groupId: 'g5' },
-      },
-    },
-    {
-      id: 's7', name: 'Gina Peters', role: 'Leerkracht',
-      schedule: {
-        monday:    { type: 'group', groupId: 'g6' },
-        tuesday:   { type: 'group', groupId: 'g6' },
-        wednesday: { type: 'group', groupId: 'g6' },
-        thursday:  { type: 'group', groupId: 'g6' },
-        friday:    { type: 'group', groupId: 'g6' },
-      },
-    },
-    {
-      id: 's8', name: 'Hans de Groot', role: 'Leerkracht',
-      schedule: {
-        monday:    { type: 'group', groupId: 'g7' },
-        tuesday:   { type: 'group', groupId: 'g7' },
-        wednesday: { type: 'group', groupId: 'g7' },
-        thursday:  { type: 'group', groupId: 'g7' },
-        friday:    { type: 'group', groupId: 'g7' },
-      },
-    },
-    {
-      id: 's9', name: 'Iris Wolters', role: 'Leerkracht',
-      schedule: {
-        monday:    { type: 'group', groupId: 'g8' },
-        tuesday:   { type: 'group', groupId: 'g8' },
-        wednesday: { type: 'group', groupId: 'g8' },
-        thursday:  { type: 'group', groupId: 'g8' },
-        friday:    { type: 'group', groupId: 'g8' },
-      },
-    },
-    {
-      id: 's10', name: 'Jan Koopmans', role: 'Onderwijsassistent',
-      schedule: {
-        monday:    { type: 'unit', unitId: 'u1' },
-        tuesday:   { type: 'unit', unitId: 'u1' },
-        wednesday: { type: 'unit', unitId: 'u1' },
-        thursday:  { type: 'unit', unitId: 'u1' },
-        friday:    { type: 'unit', unitId: 'u1' },
-      },
-    },
-    {
-      id: 's11', name: 'Karen van Dam', role: 'Intern Begeleider',
-      schedule: {
-        monday:    { type: 'unit', unitId: 'u2' },
-        tuesday:   { type: 'unit', unitId: 'u2' },
-        wednesday: { type: 'none' },
-        thursday:  { type: 'unit', unitId: 'u2' },
-        friday:    { type: 'unit', unitId: 'u2' },
-      },
-    },
-  ],
+// Start empty — data comes from Supabase or localStorage
+const emptyState = {
+  groups: [],
+  units: [],
+  staff: [],
   absences: [],
   timeAbsences: [],
 };
@@ -240,154 +69,250 @@ function reducer(state, action) {
 }
 
 export function AppProvider({ children }) {
-  const [state, dispatch] = useReducer(reducer, initialState);
+  const [state, dispatch] = useReducer(reducer, emptyState);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [syncError, setSyncError] = useState(null);
   const { organizationId, isAuthenticated } = useAuth();
 
-  // Sync state management
-  const [syncQueue, setSyncQueue] = useState([]);
-  const [syncInProgress, setSyncInProgress] = useState(false);
-  const [syncError, setSyncError] = useState(null);
-  const [lastSyncTime, setLastSyncTime] = useState(null);
-
-  // Track previous state for mutation detection
-  const prevStateRef = useRef(initialState);
-  const lastConfirmedStateRef = useRef(initialState);
-
-  // Load data from Supabase on mount or when organizationId changes
+  // ── Load data on mount ──────────────────────────────────────────────
   useEffect(() => {
-    const loadData = async () => {
-      if (!isAuthenticated || !organizationId) {
-        setLoading(false);
-        return;
-      }
+    if (!isAuthenticated) {
+      setLoading(false);
+      return;
+    }
 
+    let cancelled = false;
+
+    async function load() {
       try {
         setLoading(true);
-        const data = await db.loadAllData(organizationId);
 
-        // Reconstruct staff schedules
-        const staffWithSchedules = data.staff.map(staff => {
-          const schedules = data.timeAbsences || [];
-          return { ...staff, schedule: {} };
-        });
+        if (organizationId) {
+          // Try Supabase first
+          console.log('[AppContext] Loading from Supabase, orgId:', organizationId);
+          const data = await db.loadAllData(organizationId);
 
-        dispatch({
-          type: 'SET_INITIAL_STATE',
-          payload: {
-            groups: data.groups || [],
-            units: data.units || [],
-            staff: staffWithSchedules,
-            absences: data.absences || [],
-            timeAbsences: data.timeAbsences || [],
+          if (cancelled) return;
+
+          const hasData = (data.groups?.length > 0 || data.staff?.length > 0);
+
+          if (hasData) {
+            dispatch({
+              type: 'SET_INITIAL_STATE',
+              payload: {
+                groups: data.groups || [],
+                units: data.units || [],
+                staff: data.staff || [],
+                absences: data.absences || [],
+                timeAbsences: data.timeAbsences || [],
+              }
+            });
+            console.log('[AppContext] Loaded from Supabase:', data.groups?.length, 'groups,', data.staff?.length, 'staff');
+          } else {
+            // Supabase is empty — try localStorage
+            console.log('[AppContext] Supabase empty, trying localStorage');
+            loadLocalStorage(cancelled);
           }
-        });
-        setError(null);
-      } catch (err) {
-        console.error('Failed to load data from Supabase:', err);
-        setError(err.message);
-        // Fallback to localStorage
-        try {
-          const saved = localStorage.getItem('schoolPlanning');
-          if (saved) {
-            dispatch({ type: 'SET_INITIAL_STATE', payload: JSON.parse(saved) });
-          }
-        } catch {
-          // Use initial state
+        } else {
+          // No organizationId — use localStorage
+          console.log('[AppContext] No organizationId, using localStorage');
+          loadLocalStorage(cancelled);
         }
-      } finally {
-        setLoading(false);
-      }
-    };
 
-    loadData();
+        if (!cancelled) setError(null);
+      } catch (err) {
+        if (cancelled) return;
+        console.error('[AppContext] Supabase load failed:', err);
+        setError(err.message);
+        loadLocalStorage(cancelled);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    function loadLocalStorage(skip) {
+      if (skip) return;
+      try {
+        const saved = localStorage.getItem('schoolPlanning');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          dispatch({ type: 'SET_INITIAL_STATE', payload: parsed });
+          console.log('[AppContext] Loaded from localStorage');
+        }
+      } catch {
+        console.warn('[AppContext] localStorage parse failed');
+      }
+    }
+
+    load();
+    return () => { cancelled = true; };
   }, [organizationId, isAuthenticated]);
 
-  // Effect 1: Mutation detector - queue changes for sync
-  useEffect(() => {
-    if (loading || !organizationId) return;
+  // ── Enhanced dispatch: local update + Supabase write ────────────────
+  const enhancedDispatch = useCallback((action) => {
+    // 1. Update local state immediately (optimistic)
+    dispatch(action);
 
-    // Detect what changed since last confirmed state
-    const changes = detectStateChanges(prevStateRef.current, state);
-
-    if (changes.length > 0) {
-      // Queue as sync jobs
-      const newJobs = changes.map(change => ({
-        id: generateId(),
-        action: change.action,
-        payload: change.data,
-        timestamp: Date.now(),
-      }));
-
-      setSyncQueue(prev => [...prev, ...newJobs]);
-
-      // Instant localStorage backup (don't wait for Supabase)
-      localStorage.setItem('schoolPlanning', JSON.stringify(state));
-
-      // Update prev state for next comparison
-      prevStateRef.current = JSON.parse(JSON.stringify(state));
-    }
-  }, [state, organizationId, loading]);
-
-  // Effect 2: Sync worker - process queue every 3 seconds
-  useEffect(() => {
-    if (!organizationId || syncInProgress || syncQueue.length === 0) return;
-
-    const timer = setTimeout(async () => {
-      setSyncInProgress(true);
-      try {
-        const result = await planningService.syncStateToSupabase(
-          organizationId,
-          lastConfirmedStateRef.current,
-          state
-        );
-
-        if (result.success) {
-          setSyncQueue([]);
-          setLastSyncTime(new Date());
+    // 2. Write to Supabase in background
+    if (organizationId && action.type !== 'SET_INITIAL_STATE') {
+      writeToSupabase(organizationId, action)
+        .then(() => {
           setSyncError(null);
-          lastConfirmedStateRef.current = JSON.parse(JSON.stringify(state));
-        } else {
-          // Keep queue for retry, show first error
-          setSyncError(result.errors?.[0] || 'Sync failed');
-        }
-      } catch (err) {
-        setSyncError(err.message);
-        console.error('Sync worker error:', err);
-      } finally {
-        setSyncInProgress(false);
-      }
-    }, 3000); // Process every 3 seconds
+        })
+        .catch(err => {
+          console.error('[Sync]', action.type, 'failed:', err.message || err);
+          setSyncError(`${action.type}: ${err.message || err}`);
+        });
+    }
+  }, [organizationId]);
 
-    return () => clearTimeout(timer);
-  }, [syncQueue, syncInProgress, organizationId, state]);
-
-  // Fallback: Save to localStorage on state change (insurance)
+  // ── Save to localStorage as backup ──────────────────────────────────
   useEffect(() => {
     if (loading) return;
-
     const timer = setTimeout(() => {
       localStorage.setItem('schoolPlanning', JSON.stringify(state));
-    }, 1000);
-
+    }, 500);
     return () => clearTimeout(timer);
   }, [state, loading]);
 
   return (
     <AppContext.Provider value={{
       state,
-      dispatch,
+      dispatch: enhancedDispatch,
       loading,
       error,
-      syncQueue,
-      syncInProgress,
       syncError,
-      lastSyncTime,
     }}>
       {children}
     </AppContext.Provider>
   );
+}
+
+// ── Write a single action to Supabase ─────────────────────────────────
+async function writeToSupabase(orgId, action) {
+  const p = action.payload;
+
+  switch (action.type) {
+    // ── Groups ──
+    case 'ADD_GROUP': {
+      const { error } = await supabase.from('groups')
+        .insert([{ ...p, organization_id: orgId }]);
+      if (error) throw error;
+      return;
+    }
+    case 'UPDATE_GROUP': {
+      const { id, ...rest } = p;
+      const { error } = await supabase.from('groups')
+        .update(rest)
+        .eq('id', id)
+        .eq('organization_id', orgId);
+      if (error) throw error;
+      return;
+    }
+    case 'DELETE_GROUP': {
+      // Cascade: remove from units.groupIds
+      const { data: units } = await supabase.from('units')
+        .select('id, groupIds')
+        .eq('organization_id', orgId);
+      for (const unit of units || []) {
+        if (unit.groupIds?.includes(p)) {
+          await supabase.from('units')
+            .update({ groupIds: unit.groupIds.filter(id => id !== p) })
+            .eq('id', unit.id);
+        }
+      }
+      const { error } = await supabase.from('groups')
+        .delete().eq('id', p).eq('organization_id', orgId);
+      if (error) throw error;
+      return;
+    }
+
+    // ── Units ──
+    case 'ADD_UNIT': {
+      const { error } = await supabase.from('units')
+        .insert([{ ...p, organization_id: orgId }]);
+      if (error) throw error;
+      return;
+    }
+    case 'UPDATE_UNIT': {
+      const { id, ...rest } = p;
+      const { error } = await supabase.from('units')
+        .update(rest)
+        .eq('id', id)
+        .eq('organization_id', orgId);
+      if (error) throw error;
+      return;
+    }
+    case 'DELETE_UNIT': {
+      // Cascade: unlink groups
+      await supabase.from('groups')
+        .update({ unitId: null })
+        .eq('unitId', p)
+        .eq('organization_id', orgId);
+      const { error } = await supabase.from('units')
+        .delete().eq('id', p).eq('organization_id', orgId);
+      if (error) throw error;
+      return;
+    }
+
+    // ── Staff ──
+    case 'ADD_STAFF': {
+      const { error } = await supabase.from('staff')
+        .insert([{ ...p, organization_id: orgId }]);
+      if (error) throw error;
+      return;
+    }
+    case 'UPDATE_STAFF': {
+      const { id, ...rest } = p;
+      const { error } = await supabase.from('staff')
+        .update(rest)
+        .eq('id', id)
+        .eq('organization_id', orgId);
+      if (error) throw error;
+      return;
+    }
+    case 'DELETE_STAFF': {
+      // Cascade: delete absences and time_absences
+      await supabase.from('absences').delete().eq('staff_id', p);
+      await supabase.from('time_absences').delete().eq('staff_id', p);
+      const { error } = await supabase.from('staff')
+        .delete().eq('id', p).eq('organization_id', orgId);
+      if (error) throw error;
+      return;
+    }
+
+    // ── Absences ──
+    case 'ADD_ABSENCE': {
+      const { error } = await supabase.from('absences')
+        .insert([{ ...p, organization_id: orgId }]);
+      if (error) throw error;
+      return;
+    }
+    case 'DELETE_ABSENCE': {
+      const { error } = await supabase.from('absences')
+        .delete().eq('id', p);
+      if (error) throw error;
+      return;
+    }
+
+    // ── Time absences ──
+    case 'ADD_TIME_ABSENCE': {
+      const { error } = await supabase.from('time_absences')
+        .insert([{ ...p, organization_id: orgId }]);
+      if (error) throw error;
+      return;
+    }
+    case 'DELETE_TIME_ABSENCE': {
+      const { error } = await supabase.from('time_absences')
+        .delete().eq('id', p);
+      if (error) throw error;
+      return;
+    }
+
+    default:
+      console.warn('[Sync] Unknown action type:', action.type);
+  }
 }
 
 export function useApp() {
@@ -413,89 +338,4 @@ export const GROUP_COLORS = [
 
 export function generateId() {
   return Math.random().toString(36).slice(2, 10);
-}
-
-/**
- * Detect what changed between two states
- * Returns array of { action, data } objects
- */
-function detectStateChanges(prevState = {}, currentState = {}) {
-  const changes = [];
-
-  // Compare groups
-  compareArrays(
-    prevState.groups || [],
-    currentState.groups || [],
-    changes,
-    'group'
-  );
-
-  // Compare units
-  compareArrays(
-    prevState.units || [],
-    currentState.units || [],
-    changes,
-    'unit'
-  );
-
-  // Compare staff
-  compareArrays(
-    prevState.staff || [],
-    currentState.staff || [],
-    changes,
-    'staff'
-  );
-
-  // Compare absences
-  compareArrays(
-    prevState.absences || [],
-    currentState.absences || [],
-    changes,
-    'absence'
-  );
-
-  // Compare timeAbsences
-  compareArrays(
-    prevState.timeAbsences || [],
-    currentState.timeAbsences || [],
-    changes,
-    'timeAbsence'
-  );
-
-  return changes;
-}
-
-function compareArrays(prevArr, currArr, changes, entityType) {
-  const currIds = new Set(currArr.map(item => item.id));
-  const prevIds = new Set(prevArr.map(item => item.id));
-
-  // Deletions: in prev but not in curr
-  prevArr.forEach(prevItem => {
-    if (!currIds.has(prevItem.id)) {
-      changes.push({
-        action: `DELETE_${entityType.toUpperCase()}`,
-        data: prevItem.id, // For deletes, just the ID
-      });
-    }
-  });
-
-  // Updates & Additions
-  currArr.forEach(currItem => {
-    const prevItem = prevArr.find(p => p.id === currItem.id);
-    if (prevItem) {
-      // Check if changed
-      if (JSON.stringify(prevItem) !== JSON.stringify(currItem)) {
-        changes.push({
-          action: `UPDATE_${entityType.toUpperCase()}`,
-          data: currItem,
-        });
-      }
-    } else {
-      // New item
-      changes.push({
-        action: `ADD_${entityType.toUpperCase()}`,
-        data: currItem,
-      });
-    }
-  });
 }

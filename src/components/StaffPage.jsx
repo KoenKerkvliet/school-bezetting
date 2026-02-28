@@ -111,7 +111,7 @@ export default function StaffPage() {
     const { staffId, data } = absenceModal;
     dispatch({
       type: 'ADD_ABSENCE',
-      payload: { ...data, staffId },
+      payload: { ...data, staff_id: staffId },
     });
     setAbsenceModal(null);
   }
@@ -123,13 +123,13 @@ export default function StaffPage() {
   // ── Upcoming absences for a staff member ────────────────────────────────
   function getAbsences(staffId) {
     return absences
-      .filter(a => a.staffId === staffId)
+      .filter(a => a.staff_id === staffId)
       .sort((a, b) => a.date.localeCompare(b.date));
   }
 
   function getTimeAbsencesForStaff(staffId) {
     return (timeAbsences || [])
-      .filter(a => a.staffId === staffId)
+      .filter(a => a.staff_id === staffId)
       .sort((a, b) => a.date.localeCompare(b.date) || a.startTime.localeCompare(b.startTime));
   }
 
@@ -143,7 +143,7 @@ export default function StaffPage() {
 
   function saveTimeAbsence() {
     const { staffId, data } = timeAbsenceModal;
-    dispatch({ type: 'ADD_TIME_ABSENCE', payload: { ...data, staffId } });
+    dispatch({ type: 'ADD_TIME_ABSENCE', payload: { ...data, staff_id: staffId } });
     setTimeAbsenceModal(null);
   }
 

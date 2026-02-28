@@ -44,16 +44,16 @@ export default function Dashboard() {
   // ── helpers ──────────────────────────────────────────────────────────────
 
   function isAbsent(staffId, date) {
-    return absences.some(a => a.staffId === staffId && isSameDay(new Date(a.date), date));
+    return absences.some(a => a.staff_id === staffId && isSameDay(new Date(a.date), date));
   }
 
   function getAbsenceReason(staffId, date) {
-    return absences.find(a => a.staffId === staffId && isSameDay(new Date(a.date), date))?.reason;
+    return absences.find(a => a.staff_id === staffId && isSameDay(new Date(a.date), date))?.reason;
   }
 
   function getTimeAbsencesOnDay(staffId, date) {
     return (timeAbsences || []).filter(a =>
-      a.staffId === staffId && isSameDay(new Date(a.date), date)
+      a.staff_id === staffId && isSameDay(new Date(a.date), date)
     );
   }
 
@@ -860,9 +860,9 @@ function GroupPopup({ group, date, staffList, unitStaff, unit, unmanned, absence
 
 function StaffActionModal({ staff, date, allAbsences, allTimeAbsences, dispatch, onClose }) {
   // Derive live from current state so updates reflect immediately
-  const absence = allAbsences.find(a => a.staffId === staff.id && isSameDay(new Date(a.date), date));
+  const absence = allAbsences.find(a => a.staff_id === staff.id && isSameDay(new Date(a.date), date));
   const staffTimeAbsences = (allTimeAbsences || []).filter(
-    a => a.staffId === staff.id && isSameDay(new Date(a.date), date)
+    a => a.staff_id === staff.id && isSameDay(new Date(a.date), date)
   );
 
   const [showTimeForm, setShowTimeForm] = useState(false);
@@ -872,7 +872,7 @@ function StaffActionModal({ staff, date, allAbsences, allTimeAbsences, dispatch,
 
   function markSick() {
     dispatch({ type: 'ADD_ABSENCE', payload: {
-      id: generateId(), staffId: staff.id, date: date.toISOString(), reason: 'Ziek',
+      id: generateId(), staff_id: staff.id, date: date.toISOString(), reason: 'Ziek',
     }});
     onClose();
   }
@@ -886,7 +886,7 @@ function StaffActionModal({ staff, date, allAbsences, allTimeAbsences, dispatch,
     e.preventDefault();
     dispatch({ type: 'ADD_TIME_ABSENCE', payload: {
       id: generateId(),
-      staffId: staff.id,
+      staff_id: staff.id,
       date: date.toISOString(),
       startTime: timeForm.startTime,
       endTime: timeForm.endTime,
