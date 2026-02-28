@@ -392,7 +392,7 @@ export const DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'];
 export const DAY_LABELS_NL = ['Maandag', 'Dinsdag', 'Woensdag', 'Donderdag', 'Vrijdag'];
 export const DAY_LABELS_SHORT = ['Ma', 'Di', 'Wo', 'Do', 'Vr'];
 
-export const ROLES = ['Leerkracht', 'Onderwijsassistent', 'Intern Begeleider', 'Directie', 'Overig'];
+export const ROLES = ['Directie', 'Intern Begeleider', 'Leerkracht', 'Onderwijs Ondersteuner', 'Onderwijsassistent', 'Overig'];
 
 export const ABSENCE_REASONS = ['Ziek', 'Studiedag', 'Verlof', 'Nascholing', 'Vergadering', 'Overig'];
 export const TIME_ABSENCE_REASONS = ['Bespreking', 'Vergadering', 'Overleg', 'Oudergesprek', 'Nascholing', 'Overig'];

@@ -231,7 +231,14 @@ export default function StaffPage() {
                         </span>
                       )}
                     </div>
-                    <span className="text-xs text-gray-500">{member.role}</span>
+                    <span className={`text-xs font-medium rounded-full px-2 py-0.5 ${
+                      member.role === 'Leerkracht' ? 'bg-blue-100 text-blue-700' :
+                      member.role === 'Onderwijsassistent' ? 'bg-yellow-100 text-yellow-700' :
+                      member.role === 'Onderwijs Ondersteuner' ? 'bg-green-100 text-green-700' :
+                      member.role === 'Intern Begeleider' ? 'bg-purple-100 text-purple-700' :
+                      member.role === 'Directie' ? 'bg-red-100 text-red-700' :
+                      'bg-gray-100 text-gray-600'
+                    }`}>{member.role}</span>
                   </div>
 
                   {/* Week schedule summary */}
@@ -542,7 +549,7 @@ function StaffModal({ data, mode, groups, units, onSave, onClose }) {
                           className="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                         >
                           <option value="">— Kies groep —</option>
-                          {groups.map(g => (
+                          {[...groups].sort((a, b) => a.name.localeCompare(b.name, 'nl')).map(g => (
                             <option key={g.id} value={g.id}>{g.name}</option>
                           ))}
                         </select>
