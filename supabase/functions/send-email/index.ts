@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const EMAILIT_API_URL = "https://api.emailit.com/v2/emails";
-const FROM_EMAIL = "noreply@schoolbezetting.nl";
+const FROM_EMAIL = "noreply@designpixels.nl";
 const FROM_NAME = "School Bezetting";
 
 // ── CORS headers ──────────────────────────────────────────────────────────
