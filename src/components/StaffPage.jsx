@@ -186,8 +186,25 @@ export default function StaffPage() {
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-          {[...staff].sort((a, b) => a.name.localeCompare(b.name, 'nl')).map(member => {
+        <div className="space-y-6">
+          {[
+            { label: 'Leerkrachten', roles: ['Leerkracht'], color: 'text-blue-700', bg: 'bg-blue-50', border: 'border-blue-200' },
+            { label: 'Onderwijs Ondersteuners', roles: ['Onderwijs Ondersteuner'], color: 'text-green-700', bg: 'bg-green-50', border: 'border-green-200' },
+            { label: 'Onderwijsassistenten', roles: ['Onderwijsassistent'], color: 'text-yellow-700', bg: 'bg-yellow-50', border: 'border-yellow-200' },
+            { label: 'Overige collega\'s', roles: ['Intern Begeleider', 'Directie', 'Overig'], color: 'text-gray-700', bg: 'bg-gray-50', border: 'border-gray-200' },
+          ].map(section => {
+            const sectionStaff = [...staff]
+              .filter(s => section.roles.includes(s.role))
+              .sort((a, b) => a.name.localeCompare(b.name, 'nl'));
+            if (sectionStaff.length === 0) return null;
+            return (
+              <div key={section.label}>
+                <div className={`flex items-center gap-2 mb-3 px-1`}>
+                  <h2 className={`text-sm font-bold uppercase tracking-wide ${section.color}`}>{section.label}</h2>
+                  <span className={`text-xs font-medium rounded-full px-2 py-0.5 ${section.bg} ${section.color} ${section.border} border`}>{sectionStaff.length}</span>
+                </div>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+          {sectionStaff.map(member => {
             const memberAbsences = getAbsences(member.id);
             const memberTimeAbsences = getTimeAbsencesForStaff(member.id);
             const isExpanded = expandedStaff === member.id;
@@ -371,6 +388,10 @@ export default function StaffPage() {
                     )}
                   </div>
                 )}
+              </div>
+            );
+          })}
+                </div>
               </div>
             );
           })}
