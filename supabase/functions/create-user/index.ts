@@ -1,6 +1,10 @@
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+const EMAILIT_API_URL = "https://api.emailit.com/v2/emails";
+const FROM_EMAIL = "noreply@schoolbezetting.nl";
+const FROM_NAME = "School Bezetting";
+
 // ── CORS headers ──────────────────────────────────────────────────────────
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -8,6 +12,58 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
+
+// ── Invite email template ─────────────────────────────────────────────────
+
+function inviteTemplate(firstName: string, resetUrl: string, schoolName: string): string {
+  return `
+<!DOCTYPE html>
+<html lang="nl">
+<head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;background-color:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f3f4f6;padding:40px 20px;">
+    <tr><td align="center">
+      <table width="600" cellpadding="0" cellspacing="0" style="background-color:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.1);">
+        <!-- Header -->
+        <tr>
+          <td style="background-color:#1e293b;padding:28px 32px;text-align:center;">
+            <h1 style="color:#ffffff;margin:0;font-size:22px;font-weight:700;">School Bezetting</h1>
+            <p style="color:#94a3b8;margin:6px 0 0;font-size:13px;">${schoolName}</p>
+          </td>
+        </tr>
+        <!-- Body -->
+        <tr>
+          <td style="padding:36px 32px;">
+            <h2 style="color:#1e293b;margin:0 0 16px;font-size:20px;">Welkom${firstName ? ', ' + firstName : ''}!</h2>
+            <p style="color:#475569;font-size:15px;line-height:1.6;margin:0 0 16px;">
+              Er is een account voor je aangemaakt op <strong>${schoolName}</strong>.
+              Klik op onderstaande knop om je wachtwoord in te stellen en direct aan de slag te gaan.
+            </p>
+            <table width="100%" cellpadding="0" cellspacing="0" style="margin:28px 0;">
+              <tr><td align="center">
+                <a href="${resetUrl}" style="display:inline-block;background-color:#2563eb;color:#ffffff;text-decoration:none;padding:14px 32px;border-radius:8px;font-size:15px;font-weight:600;">
+                  Wachtwoord instellen
+                </a>
+              </td></tr>
+            </table>
+            <p style="color:#94a3b8;font-size:13px;line-height:1.5;margin:0;">
+              Als je deze uitnodiging niet verwachtte, kun je deze email negeren.
+              <br>Deze link is 24 uur geldig.
+            </p>
+          </td>
+        </tr>
+        <!-- Footer -->
+        <tr>
+          <td style="background-color:#f8fafc;padding:20px 32px;border-top:1px solid #e2e8f0;text-align:center;">
+            <p style="color:#94a3b8;font-size:12px;margin:0;">&copy; ${new Date().getFullYear()} School Bezetting</p>
+          </td>
+        </tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`;
+}
 
 // ── Main handler ──────────────────────────────────────────────────────────
 
@@ -118,41 +174,43 @@ serve(async (req: Request) => {
       // Profile creation failure is not critical, continue
     }
 
-    // Send invite email via Edge Function
-    const origin = req.headers.get("origin") || "http://localhost:5173";
+    // Send invite email directly via Emailit API
+    const origin = req.headers.get("origin") || "https://schoolbezetting.nl";
     const resetUrl = `${origin}/set-password`;
-    try {
-      await fetch(`${supabaseUrl}/functions/v1/send-email`, {
-        method: "POST",
-        headers: {
-          Authorization: authHeader,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          type: "invite",
-          to: email,
-          data: {
-            firstName,
-            resetUrl,
-            schoolName: schoolName || "School Bezetting",
-          },
-        }),
-      });
-    } catch (emailErr) {
-      // If Edge Function fails, fall back to Supabase's built-in email
-      console.warn("send-email function failed, falling back to Supabase:", emailErr.message);
+    let emailSent = false;
+
+    const emailitApiKey = Deno.env.get("EMAILIT_API_KEY");
+    if (emailitApiKey) {
       try {
-        await adminClient.auth.admin.generateLink({
-          type: "signup",
-          email,
-          options: {
-            redirectTo: resetUrl,
+        const subject = `Uitnodiging voor ${schoolName || "School Bezetting"}`;
+        const html = inviteTemplate(firstName, resetUrl, schoolName || "School Bezetting");
+
+        const emailResponse = await fetch(EMAILIT_API_URL, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${emailitApiKey}`,
+            "Content-Type": "application/json",
           },
+          body: JSON.stringify({
+            from: `${FROM_NAME} <${FROM_EMAIL}>`,
+            to: email,
+            subject,
+            html,
+          }),
         });
-      } catch (resetErr) {
-        console.error("Fallback email also failed:", resetErr);
-        // Still return success since user was created, just email failed
+
+        if (emailResponse.ok) {
+          emailSent = true;
+          console.log("Invite email sent via Emailit to:", email);
+        } else {
+          const errorText = await emailResponse.text();
+          console.error("Emailit API error:", emailResponse.status, errorText);
+        }
+      } catch (emailErr) {
+        console.error("Emailit fetch error:", emailErr.message);
       }
+    } else {
+      console.warn("EMAILIT_API_KEY not configured, skipping email");
     }
 
     // Log to audit
@@ -169,16 +227,16 @@ serve(async (req: Request) => {
             firstName,
             lastName,
             role,
+            emailSent,
           },
         },
       ]);
     } catch (auditErr) {
       console.error("Audit log error:", auditErr);
-      // Don't fail if audit fails
     }
 
     return new Response(
-      JSON.stringify({ success: true, user: userData[0] }),
+      JSON.stringify({ success: true, user: userData[0], emailSent }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err) {
