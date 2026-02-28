@@ -267,7 +267,7 @@ async function writeToSupabase(orgId, action) {
       const { error } = await supabase.from('staff').insert([row]);
       if (error) throw error;
       // Also save schedule rows
-      const schedRows = appStaffToScheduleRows(p);
+      const schedRows = appStaffToScheduleRows(p).map(r => ({ ...r, organization_id: orgId }));
       console.log('[Sync] ADD_STAFF schedule rows:', schedRows.length);
       if (schedRows.length > 0) {
         const { error: sErr } = await supabase.from('staff_schedule').insert(schedRows);
@@ -283,7 +283,7 @@ async function writeToSupabase(orgId, action) {
       if (error) throw error;
       // Replace schedule: delete old rows, insert new
       await supabase.from('staff_schedule').delete().eq('staff_id', p.id);
-      const schedRows = appStaffToScheduleRows(p);
+      const schedRows = appStaffToScheduleRows(p).map(r => ({ ...r, organization_id: orgId }));
       if (schedRows.length > 0) {
         const { error: sErr } = await supabase.from('staff_schedule').insert(schedRows);
         if (sErr) throw new Error(`Schedule update failed: ${sErr.message}`);
