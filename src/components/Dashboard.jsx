@@ -768,7 +768,7 @@ function GroupPopup({ group, date, staffList, allStaff, unitStaff, unit, unmanne
     // 2. OR Assigned to a unit (ambulant/ondersteuning, type='unit')
     // But NOT if they are assigned to another group (type='group')
     if (scheduleType === 'group') return false; // Assigned to another group
-    if (scheduleType === 'unit' || scheduleType === undefined || scheduleType === null) return true; // Free or unit
+    if (scheduleType === 'unit' || scheduleType === 'none' || scheduleType === undefined || scheduleType === null) return true; // Free or unit
 
     return false;
   });
