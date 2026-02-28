@@ -4,7 +4,7 @@ import UserManagementPage from './UserManagementPage'
 import SchoolManagementPage from './SchoolManagementPage'
 import * as organizationService from '../services/organizationService'
 
-export default function AdminDashboard({ onBack }) {
+export default function AdminDashboard({ onBack, onNavigateToUserDetail }) {
   const { role, organizationId, logout } = useAuth()
   const [activeTab, setActiveTab] = useState('overview')
   const [organization, setOrganization] = useState(null)
@@ -156,7 +156,7 @@ export default function AdminDashboard({ onBack }) {
         )}
 
         {/* Users Tab */}
-        {activeTab === 'users' && <UserManagementPage />}
+        {activeTab === 'users' && <UserManagementPage onNavigateToUserDetail={onNavigateToUserDetail} />}
 
         {/* Schools Tab */}
         {activeTab === 'schools' && <SchoolManagementPage />}

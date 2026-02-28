@@ -11,17 +11,29 @@ import AdminDashboard from './components/AdminDashboard.jsx';
 import ProfilePage from './components/ProfilePage.jsx';
 import LogbookPage from './components/LogbookPage.jsx';
 import TestEmailPage from './components/TestEmailPage.jsx';
+import UserDetailPage from './components/UserDetailPage.jsx';
 import SyncStatusBar from './components/SyncStatusBar.jsx';
 
 function AppContent() {
   const [currentPage, setCurrentPage] = useState('dashboard');
   const [navigateDate, setNavigateDate] = useState(null);
+  const [selectedUserId, setSelectedUserId] = useState(null);
   const { loading: appLoading, error: appError } = useApp();
   const { role } = useAuth();
 
   const handleNavigateToDay = (date) => {
     setNavigateDate(date);
     setCurrentPage('dashboard');
+  };
+
+  const handleNavigateToUserDetail = (userId) => {
+    setSelectedUserId(userId);
+    setCurrentPage('user-detail');
+  };
+
+  const handleBackFromUserDetail = () => {
+    setSelectedUserId(null);
+    setCurrentPage('admin');
   };
 
   if (appLoading) {
@@ -58,7 +70,8 @@ function AppContent() {
           {currentPage === 'staff' && <StaffPage />}
           {currentPage === 'logbook' && <LogbookPage />}
           {currentPage === 'test-email' && <TestEmailPage />}
-          {currentPage === 'admin' && <AdminDashboard onBack={() => setCurrentPage('dashboard')} />}
+          {currentPage === 'admin' && <AdminDashboard onBack={() => setCurrentPage('dashboard')} onNavigateToUserDetail={handleNavigateToUserDetail} />}
+          {currentPage === 'user-detail' && selectedUserId && <UserDetailPage userId={selectedUserId} onBack={handleBackFromUserDetail} />}
           {currentPage === 'profile' && <ProfilePage />}
         </div>
       </main>

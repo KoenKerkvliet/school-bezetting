@@ -170,6 +170,71 @@ export async function listAllUsers() {
 }
 
 /**
+ * Delete own account (self-deletion)
+ * Server-side via Edge Function — blocks if user is last Admin
+ * @param {string} organizationId
+ * @returns {Promise}
+ */
+export async function deleteOwnAccount(organizationId) {
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+  const { data: { session } } = await supabase.auth.getSession()
+
+  const response = await fetch(`${supabaseUrl}/functions/v1/delete-own-account`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${session?.access_token}`,
+      'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+    },
+    body: JSON.stringify({ organizationId }),
+  })
+
+  const result = await response.json()
+
+  if (!response.ok) {
+    throw new Error(result.error || 'Fout bij het verwijderen van account')
+  }
+}
+
+/**
+ * Update user name (admin only)
+ * @param {string} userId
+ * @param {string} firstName
+ * @param {string} lastName
+ * @param {string} organizationId
+ * @returns {Promise<object>}
+ */
+export async function updateUserName(userId, firstName, lastName, organizationId) {
+  // Update users table
+  const { data, error } = await supabase
+    .from('users')
+    .update({ first_name: firstName, last_name: lastName, updated_at: new Date() })
+    .eq('id', userId)
+    .eq('organization_id', organizationId)
+    .select()
+
+  if (error) throw new Error(error.message)
+
+  // Also update profiles table
+  const { error: profileError } = await supabase
+    .from('profiles')
+    .update({ first_name: firstName, last_name: lastName })
+    .eq('user_id', userId)
+
+  if (profileError) {
+    console.error('Profile update error:', profileError)
+  }
+
+  // Log to audit
+  await logAuditAction(organizationId, userId, 'UPDATE_USER_NAME', 'user', userId, {
+    firstName,
+    lastName,
+  })
+
+  return data[0]
+}
+
+/**
  * Disable user without deleting
  * @param {string} userId
  * @param {string} organizationId

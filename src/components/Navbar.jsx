@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   LayoutDashboard, BookOpen, Users, Calendar, GraduationCap,
-  Settings, LogOut, User, ChevronDown, ChevronRight, Shield, ClipboardList, Mail,
+  Settings, LogOut, User, Shield, ClipboardList, Mail,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
@@ -20,10 +20,40 @@ const settingsItems = [
 export default function Navbar({ currentPage, setCurrentPage }) {
   const { user, role, logout } = useAuth();
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const settingsBtnRef = useRef(null);
+  const flyoutRef = useRef(null);
+  const [flyoutPos, setFlyoutPos] = useState({ top: 0, left: 0 });
 
-  // Keep settings open if a settings sub-item is active
   const settingsPageIds = ['groups', 'admin', 'test-email'];
   const isSettingsActive = settingsPageIds.includes(currentPage);
+
+  // Calculate flyout position when opening
+  useEffect(() => {
+    if (settingsOpen && settingsBtnRef.current) {
+      const rect = settingsBtnRef.current.getBoundingClientRect();
+      setFlyoutPos({
+        top: rect.top,
+        left: rect.right + 8,
+      });
+    }
+  }, [settingsOpen]);
+
+  // Close flyout on click outside
+  useEffect(() => {
+    if (!settingsOpen) return;
+
+    const handleClickOutside = (e) => {
+      if (
+        flyoutRef.current && !flyoutRef.current.contains(e.target) &&
+        settingsBtnRef.current && !settingsBtnRef.current.contains(e.target)
+      ) {
+        setSettingsOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [settingsOpen]);
 
   const handleLogout = async () => {
     try {
@@ -35,6 +65,7 @@ export default function Navbar({ currentPage, setCurrentPage }) {
 
   const handleNavClick = (id) => {
     setCurrentPage(id);
+    setSettingsOpen(false);
   };
 
   return (
@@ -72,33 +103,33 @@ export default function Navbar({ currentPage, setCurrentPage }) {
       <div className="px-3 pb-4 space-y-1 border-t border-slate-700 pt-3">
         {/* Settings toggle */}
         <button
+          ref={settingsBtnRef}
           onClick={() => setSettingsOpen(!settingsOpen)}
           className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-            isSettingsActive && !settingsOpen
+            isSettingsActive || settingsOpen
               ? 'bg-slate-700 text-white'
               : 'text-slate-300 hover:bg-slate-700 hover:text-white'
           }`}
         >
           <Settings className="w-5 h-5 flex-shrink-0" />
           <span className="flex-1 text-left">Instellingen</span>
-          {(settingsOpen || isSettingsActive) ? (
-            <ChevronDown className="w-4 h-4 flex-shrink-0" />
-          ) : (
-            <ChevronRight className="w-4 h-4 flex-shrink-0" />
-          )}
         </button>
 
-        {/* Settings sub-items */}
-        {(settingsOpen || isSettingsActive) && (
-          <div className="ml-4 space-y-0.5">
+        {/* Settings flyout (positioned to the right) */}
+        {settingsOpen && (
+          <div
+            ref={flyoutRef}
+            className="fixed z-50 bg-white rounded-lg shadow-xl border border-gray-200 py-2 min-w-[180px]"
+            style={{ top: flyoutPos.top, left: flyoutPos.left }}
+          >
             {settingsItems.map(({ id, label, icon: Icon }) => (
               <button
                 key={id}
                 onClick={() => handleNavClick(id)}
-                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
+                className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors ${
                   currentPage === id
-                    ? 'bg-blue-600 text-white font-medium'
-                    : 'text-slate-400 hover:bg-slate-700 hover:text-white'
+                    ? 'bg-blue-50 text-blue-700 font-medium'
+                    : 'text-gray-700 hover:bg-gray-100'
                 }`}
               >
                 <Icon className="w-4 h-4 flex-shrink-0" />
@@ -110,10 +141,10 @@ export default function Navbar({ currentPage, setCurrentPage }) {
             {role === 'Admin' && (
               <button
                 onClick={() => handleNavClick('admin')}
-                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
+                className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors ${
                   currentPage === 'admin'
-                    ? 'bg-blue-600 text-white font-medium'
-                    : 'text-slate-400 hover:bg-slate-700 hover:text-white'
+                    ? 'bg-blue-50 text-blue-700 font-medium'
+                    : 'text-gray-700 hover:bg-gray-100'
                 }`}
               >
                 <Shield className="w-4 h-4 flex-shrink-0" />

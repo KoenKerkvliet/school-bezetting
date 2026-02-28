@@ -1,17 +1,16 @@
 import React, { useState, useEffect } from 'react'
+import { Settings } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import * as userService from '../services/userService'
 import * as organizationService from '../services/organizationService'
 
-export default function UserManagementPage() {
+export default function UserManagementPage({ onNavigateToUserDetail }) {
   const { organizationId, user: currentUser } = useAuth()
   const [users, setUsers] = useState([])
   const [schools, setSchools] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [showCreateForm, setShowCreateForm] = useState(false)
-  const [editingUserId, setEditingUserId] = useState(null)
-  const [editingSchoolUserId, setEditingSchoolUserId] = useState(null)
 
   // Form state
   const [formData, setFormData] = useState({
@@ -105,42 +104,12 @@ export default function UserManagementPage() {
     }
   }
 
-  // Update user role
-  const handleUpdateRole = async (userId, newRole) => {
-    try {
-      setError('')
-      const updatedUser = await userService.updateUserRole(userId, newRole, organizationId)
-      setUsers(users.map((u) => (u.id === userId ? updatedUser : u)))
-      setEditingUserId(null)
-    } catch (err) {
-      setError(err.message)
-    }
-  }
-
-  // Update user organization
-  const handleUpdateOrganization = async (userId, newOrgId) => {
-    try {
-      setError('')
-      const updatedUser = await userService.updateUserOrganization(userId, newOrgId, organizationId)
-      setUsers(users.map((u) => (u.id === userId ? { ...u, organization_id: newOrgId } : u)))
-      setEditingSchoolUserId(null)
-    } catch (err) {
-      setError(err.message)
-    }
-  }
-
-  // Delete user
-  const handleDeleteUser = async (userId) => {
-    if (!window.confirm('Weet je zeker dat je deze gebruiker wilt verwijderen?')) {
-      return
-    }
-
-    try {
-      setError('')
-      await userService.deleteUser(userId, organizationId)
-      setUsers(users.filter((u) => u.id !== userId))
-    } catch (err) {
-      setError(err.message)
+  const getRoleBadgeColor = (role) => {
+    switch (role) {
+      case 'Admin': return 'bg-purple-100 text-purple-700'
+      case 'Editor': return 'bg-blue-100 text-blue-700'
+      case 'Viewer': return 'bg-gray-100 text-gray-700'
+      default: return 'bg-gray-100 text-gray-700'
     }
   }
 
@@ -308,71 +277,34 @@ export default function UserManagementPage() {
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-600">{user.email}</td>
                     <td className="px-6 py-4 text-sm">
-                      {editingSchoolUserId === user.id ? (
-                        <select
-                          value={user.organization_id || ''}
-                          onChange={(e) => handleUpdateOrganization(user.id, e.target.value)}
-                          className="px-2 py-1 border border-gray-300 rounded text-sm"
-                          autoFocus
-                          onBlur={() => setEditingSchoolUserId(null)}
-                        >
-                          {schools.map((school) => (
-                            <option key={school.id} value={school.id}>
-                              {school.name}
-                            </option>
-                          ))}
-                        </select>
-                      ) : (
-                        <div
-                          onClick={() => setEditingSchoolUserId(user.id)}
-                          className="cursor-pointer inline-block px-2 py-1 bg-green-100 text-green-700 rounded text-sm font-medium hover:bg-green-200"
-                          title="Klik om school te wijzigen"
-                        >
-                          {getSchoolName(user.organization_id)}
-                        </div>
-                      )}
+                      <span className="inline-block px-2 py-1 bg-green-100 text-green-700 rounded text-sm font-medium">
+                        {getSchoolName(user.organization_id)}
+                      </span>
                     </td>
                     <td className="px-6 py-4 text-sm">
-                      {editingUserId === user.id ? (
-                        <select
-                          value={user.role}
-                          onChange={(e) => handleUpdateRole(user.id, e.target.value)}
-                          className="px-2 py-1 border border-gray-300 rounded text-sm"
-                          autoFocus
-                        >
-                          {roles.map((role) => (
-                            <option key={role} value={role}>
-                              {role}
-                            </option>
-                          ))}
-                        </select>
-                      ) : (
-                        <div
-                          onClick={() => setEditingUserId(user.id)}
-                          className="cursor-pointer inline-block px-2 py-1 bg-blue-100 text-blue-700 rounded text-sm font-medium hover:bg-blue-200"
-                        >
-                          {user.role}
-                        </div>
-                      )}
+                      <span className={`inline-block px-2 py-1 rounded text-sm font-medium ${getRoleBadgeColor(user.role)}`}>
+                        {user.role}
+                      </span>
                     </td>
                     <td className="px-6 py-4 text-sm">
                       {user.email_verified_at ? (
                         <span className="inline-block px-2 py-1 bg-green-100 text-green-700 rounded text-xs font-medium">
-                          ✓ Geverifieerd
+                          Geverifieerd
                         </span>
                       ) : (
                         <span className="inline-block px-2 py-1 bg-yellow-100 text-yellow-700 rounded text-xs font-medium">
-                          ⏳ In afwachting
+                          In afwachting
                         </span>
                       )}
                     </td>
                     <td className="px-6 py-4 text-sm">
                       {user.id !== currentUser?.id ? (
                         <button
-                          onClick={() => handleDeleteUser(user.id)}
-                          className="text-red-600 hover:text-red-900 font-medium"
+                          onClick={() => onNavigateToUserDetail?.(user.id)}
+                          className="p-2 hover:bg-gray-100 rounded-lg transition-colors text-gray-500 hover:text-gray-700"
+                          title="Gebruiker bewerken"
                         >
-                          Verwijderen
+                          <Settings className="w-4 h-4" />
                         </button>
                       ) : (
                         <span className="text-gray-400 text-xs">Jouw account</span>
@@ -389,8 +321,7 @@ export default function UserManagementPage() {
       {/* Info Box */}
       <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
         <p className="text-blue-800 text-sm">
-          <strong>💡 Info:</strong> Wanneer je een nieuwe gebruiker aanmaakt, ontvangt deze een email met
-          instructies om een wachtwoord in te stellen. Klik op de rol of school om deze aan te passen.
+          <strong>Info:</strong> Klik op het instellingen-icoontje achter een gebruiker om gegevens aan te passen, wachtwoord te resetten of de gebruiker te verwijderen.
         </p>
       </div>
     </div>
