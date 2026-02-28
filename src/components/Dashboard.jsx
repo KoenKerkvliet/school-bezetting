@@ -6,7 +6,7 @@ import {
 import { nl } from 'date-fns/locale';
 import {
   ChevronLeft, ChevronRight, AlertTriangle, CheckCircle,
-  UserX, Users, Clock, X, Plus, Eye, UserPlus, Printer,
+  UserX, Users, Clock, X, Plus, UserPlus, Printer,
 } from 'lucide-react';
 import { useApp, DAYS, DAY_LABELS_NL, generateId } from '../context/AppContext.jsx';
 
@@ -448,9 +448,12 @@ export default function Dashboard({ initialDate, onInitialDateUsed }) {
                     : 'border-gray-200'
                 } bg-white overflow-hidden`}
               >
-                {/* Day header */}
-                <div className={`px-3 py-2 ${today ? 'bg-blue-600 text-white' : 'bg-gray-50 border-b border-gray-100'}`}>
-                  <div className="flex items-start justify-between">
+                {/* Day header — clickable to open day detail */}
+                <div
+                  onClick={() => setSelectedDay(date)}
+                  className={`px-3 py-2 cursor-pointer transition-colors ${today ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-gray-50 border-b border-gray-100 hover:bg-gray-100'}`}
+                >
+                  <div className="flex items-center justify-between">
                     <div>
                       <div className={`font-semibold text-sm ${today ? 'text-white' : 'text-gray-800'}`}>
                         {DAY_LABELS_NL[i]}
@@ -459,23 +462,12 @@ export default function Dashboard({ initialDate, onInitialDateUsed }) {
                         {format(date, 'd MMM', { locale: nl })}
                       </div>
                     </div>
-                    <button
-                      onClick={e => { e.stopPropagation(); setSelectedDay(date); }}
-                      className={`p-1 rounded transition-colors ${today ? 'hover:bg-blue-500 text-blue-200 hover:text-white' : 'hover:bg-gray-200 text-gray-400 hover:text-gray-600'}`}
-                      title="Volledige dagweergave"
-                    >
-                      <Eye className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                  {/* Badges */}
-                  <div className="flex gap-1 mt-1.5 flex-wrap">
-                    {unmannedCount > 0 && (
+                    {unmannedCount > 0 ? (
                       <span className="inline-flex items-center gap-0.5 text-xs bg-red-500 text-white rounded px-1.5 py-0.5 font-medium">
                         <AlertTriangle className="w-2.5 h-2.5" />
                         {unmannedCount} onbemand
                       </span>
-                    )}
-                    {unmannedCount === 0 && (
+                    ) : (
                       <span className="inline-flex items-center gap-0.5 text-xs bg-green-500 text-white rounded px-1.5 py-0.5 font-medium">
                         <CheckCircle className="w-2.5 h-2.5" />
                         OK
