@@ -1,0 +1,76 @@
+[
+  {
+    "version": "1.2.2",
+    "date": "2026-02-28",
+    "type": "patch",
+    "changes": [
+      "PDF: hele-dag invallers worden niet meer dubbel getoond bij ondersteuning",
+      "PDF: rol verwijderd achter naam in ondersteuning-sectie",
+      "\"Onderwijs Ondersteuner\" hernoemd naar \"Onderwijsondersteuner\""
+    ]
+  },
+  {
+    "version": "1.2.1",
+    "date": "2026-02-28",
+    "type": "patch",
+    "changes": [
+      "Versienummer toegevoegd onderaan de sidebar met link naar changelog",
+      "Changelog pagina aangemaakt",
+      "PDF weekoverzicht uitgebreid met ondersteuning per unit"
+    ]
+  },
+  {
+    "version": "1.2.0",
+    "date": "2026-02-28",
+    "type": "minor",
+    "changes": [
+      "Instellingen-menu opent nu als flyout rechts van de sidebar",
+      "Profiel: wachtwoord wijzigen toegevoegd",
+      "Profiel: gevarenzone met account verwijderen (typ VERWIJDER om te bevestigen)",
+      "Admin: gebruiker detail pagina met naam bewerken, rol/school wijzigen, wachtwoord resetten",
+      "Admin: archiveren en verwijderen per gebruiker met bevestiging",
+      "Gebruikerstabel: instellingen-icoontje per gebruiker i.p.v. inline bewerken"
+    ]
+  },
+  {
+    "version": "1.1.1",
+    "date": "2026-02-27",
+    "type": "patch",
+    "changes": [
+      "Email verzending via designpixels.nl domein (tijdelijk)",
+      "Nieuwe gebruikers worden direct als geverifieerd aangemaakt",
+      "Eigen account kan niet meer verwijderd worden in admin panel",
+      "Laatste admin van een school kan niet verwijderd worden"
+    ]
+  },
+  {
+    "version": "1.1.0",
+    "date": "2026-02-27",
+    "type": "minor",
+    "changes": [
+      "Multi-school/organisatie systeem toegevoegd",
+      "Gebruikersbeheer via Supabase Edge Functions (server-side)",
+      "Uitnodigingsmail bij aanmaken nieuwe gebruiker via Emailit",
+      "Test email pagina toegevoegd onder instellingen",
+      "Gebruiker volledig verwijderen uit Auth + database (email herbruikbaar)",
+      "Logboek pagina met audit logging"
+    ]
+  },
+  {
+    "version": "1.0.0",
+    "date": "2026-02-25",
+    "type": "major",
+    "changes": [
+      "Weekoverzicht dashboard met 5-koloms weergave (ma-vr)",
+      "Groepen- en units beheer met pauzetijden en kleuren",
+      "Medewerkersbeheer met weekrooster per dag",
+      "Afwezigheidssysteem met redenen en tijdgebonden afwezigheid",
+      "Vervangerssysteem met tijdslot-specifieke toewijzingen",
+      "PDF/print export van weekoverzicht",
+      "Dag-detail modal met volledige bezettingsinfo",
+      "Kleurgecodeerde groepskaarten (groen/rood/oranje)",
+      "Sidebar navigatie met profiel en uitloggen",
+      "Supabase authenticatie en data synchronisatie"
+    ]
+  }
+]

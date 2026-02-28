@@ -4,6 +4,9 @@ import {
   Settings, LogOut, User, Shield, ClipboardList, Mail,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import changelog from '../changelog.json';
+
+const currentVersion = changelog[0]?.version || '1.0.0';
 
 const mainNavItems = [
   { id: 'dashboard', label: 'Dashboard',    icon: LayoutDashboard },
@@ -183,7 +186,7 @@ export default function Navbar({ currentPage, setCurrentPage }) {
           onClick={() => handleNavClick('changelog')}
           className="w-full text-center text-xs text-slate-500 hover:text-slate-300 transition-colors"
         >
-          v1.0.0
+          v{currentVersion}
         </button>
       </div>
     </aside>
