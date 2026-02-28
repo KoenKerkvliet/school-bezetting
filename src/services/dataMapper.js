@@ -7,7 +7,7 @@
  * groups:   id, name, unit_id, start_time, end_time,
  *           short_break_start, short_break_end,
  *           long_break_start, long_break_end,
- *           color, organization_id, created_at, updated_at
+ *           color, days (JSON), organization_id, created_at, updated_at
  *
  * units:    id, name, group_ids[], organization_id, created_at, updated_at
  *
@@ -40,6 +40,13 @@ export function dbGroupToApp(db) {
       end: db.long_break_end || '12:45',
     },
     color: db.color || '#3b82f6',
+    days: db.days || {
+      monday: true,
+      tuesday: true,
+      wednesday: true,
+      thursday: true,
+      friday: true,
+    },
   }
 }
 
@@ -55,6 +62,13 @@ export function appGroupToDb(app, orgId) {
     long_break_start: app.longBreak?.start || null,
     long_break_end: app.longBreak?.end || null,
     color: app.color,
+    days: app.days || {
+      monday: true,
+      tuesday: true,
+      wednesday: true,
+      thursday: true,
+      friday: true,
+    },
     organization_id: orgId,
   }
 }
