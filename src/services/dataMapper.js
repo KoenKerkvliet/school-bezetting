@@ -14,7 +14,7 @@
  * staff:    id, name, role, organization_id, created_at, updated_at
  *           (schedule is in separate staff_schedule table)
  *
- * staff_schedule: id, staff_id, day, type, group_id, unit_id, created_at
+ * staff_schedule: id, staff_id, day, schedule_type, group_id, unit_id, created_at
  *
  * absences: id, staff_id, date, reason, organization_id, created_at
  *
@@ -90,7 +90,7 @@ export function dbStaffToApp(dbStaff, dbScheduleRows = []) {
     .filter(r => r.staff_id === dbStaff.id)
     .forEach(r => {
       schedule[r.day] = {
-        type: r.type || 'none',
+        type: r.schedule_type || 'none',
         ...(r.group_id ? { groupId: r.group_id } : {}),
         ...(r.unit_id ? { unitId: r.unit_id } : {}),
       }
@@ -127,7 +127,7 @@ export function appStaffToScheduleRows(staff) {
     .map(d => ({
       staff_id: staff.id,
       day: d,
-      type: staff.schedule[d].type,
+      schedule_type: staff.schedule[d].type,
       group_id: staff.schedule[d].groupId || null,
       unit_id: staff.schedule[d].unitId || null,
     }))
