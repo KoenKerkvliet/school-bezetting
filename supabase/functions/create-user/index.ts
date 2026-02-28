@@ -116,11 +116,11 @@ serve(async (req: Request) => {
     // Create admin client with service role key
     const adminClient = createClient(supabaseUrl, supabaseServiceRoleKey);
 
-    // Create auth user
+    // Create auth user (email_confirm: true since admin creates the account)
     const { data: authData, error: createAuthError } = await adminClient.auth.admin.createUser({
       email,
       password: tempPassword,
-      email_confirm: false,
+      email_confirm: true,
     });
 
     if (createAuthError) {
@@ -144,6 +144,7 @@ serve(async (req: Request) => {
           first_name: firstName,
           last_name: lastName,
           role,
+          email_verified_at: new Date().toISOString(),
         },
       ])
       .select();

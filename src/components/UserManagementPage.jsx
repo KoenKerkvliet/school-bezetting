@@ -4,7 +4,7 @@ import * as userService from '../services/userService'
 import * as organizationService from '../services/organizationService'
 
 export default function UserManagementPage() {
-  const { organizationId } = useAuth()
+  const { organizationId, user: currentUser } = useAuth()
   const [users, setUsers] = useState([])
   const [schools, setSchools] = useState([])
   const [loading, setLoading] = useState(true)
@@ -367,12 +367,16 @@ export default function UserManagementPage() {
                       )}
                     </td>
                     <td className="px-6 py-4 text-sm">
-                      <button
-                        onClick={() => handleDeleteUser(user.id)}
-                        className="text-red-600 hover:text-red-900 font-medium"
-                      >
-                        Verwijderen
-                      </button>
+                      {user.id !== currentUser?.id ? (
+                        <button
+                          onClick={() => handleDeleteUser(user.id)}
+                          className="text-red-600 hover:text-red-900 font-medium"
+                        >
+                          Verwijderen
+                        </button>
+                      ) : (
+                        <span className="text-gray-400 text-xs">Jouw account</span>
+                      )}
                     </td>
                   </tr>
                 ))}

@@ -65,6 +65,29 @@ serve(async (req: Request) => {
     // Create admin client with service role key
     const adminClient = createClient(supabaseUrl, supabaseServiceRoleKey);
 
+    // Check if user being deleted is an Admin — prevent deleting the last Admin
+    const { data: targetUser } = await adminClient
+      .from("users")
+      .select("role")
+      .eq("id", userId)
+      .eq("organization_id", organizationId)
+      .single();
+
+    if (targetUser?.role === "Admin") {
+      const { count } = await adminClient
+        .from("users")
+        .select("id", { count: "exact", head: true })
+        .eq("organization_id", organizationId)
+        .eq("role", "Admin");
+
+      if (count !== null && count <= 1) {
+        return new Response(
+          JSON.stringify({ error: "Kan de laatste admin niet verwijderen" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    }
+
     // Delete from users table (cascade will remove profiles)
     const { error: deleteUserError } = await adminClient
       .from("users")
