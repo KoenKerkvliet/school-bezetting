@@ -304,8 +304,12 @@ async function writeToSupabase(orgId, action) {
     // ── Absences ──
     case 'ADD_ABSENCE': {
       const row = appAbsenceToDb(p, orgId);
+      console.log('[Sync] ADD_ABSENCE row:', row);
       const { error } = await supabase.from('absences').insert([row]);
-      if (error) throw error;
+      if (error) {
+        console.error('[Sync] ADD_ABSENCE error:', error);
+        throw error;
+      }
       return;
     }
     case 'DELETE_ABSENCE': {
@@ -317,8 +321,12 @@ async function writeToSupabase(orgId, action) {
     // ── Time absences ──
     case 'ADD_TIME_ABSENCE': {
       const row = appTimeAbsenceToDb(p, orgId);
+      console.log('[Sync] ADD_TIME_ABSENCE row:', row);
       const { error } = await supabase.from('time_absences').insert([row]);
-      if (error) throw error;
+      if (error) {
+        console.error('[Sync] ADD_TIME_ABSENCE error:', error);
+        throw error;
+      }
       return;
     }
     case 'DELETE_TIME_ABSENCE': {

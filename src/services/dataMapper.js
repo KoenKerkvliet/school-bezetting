@@ -22,6 +22,14 @@
  *                organization_id, created_at
  */
 
+// ── Helpers ────────────────────────────────────────────────────────────
+
+function formatDateForDb(isoString) {
+  if (!isoString) return null;
+  // Convert ISO string (e.g., "2026-02-28T00:00:00.000Z") to date-only format (e.g., "2026-02-28")
+  return isoString.split('T')[0];
+}
+
 // ── Groups ────────────────────────────────────────────────────────────
 
 export function dbGroupToApp(db) {
@@ -162,7 +170,7 @@ export function appAbsenceToDb(app, orgId) {
   return {
     id: app.id,
     staff_id: app.staff_id,
-    date: app.date,
+    date: formatDateForDb(app.date),
     reason: app.reason,
     organization_id: orgId,
   }
@@ -185,7 +193,7 @@ export function appTimeAbsenceToDb(app, orgId) {
   return {
     id: app.id,
     staff_id: app.staff_id,
-    date: app.date,
+    date: formatDateForDb(app.date),
     start_time: app.startTime,
     end_time: app.endTime,
     reason: app.reason,
