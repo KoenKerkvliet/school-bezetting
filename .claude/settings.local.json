@@ -38,7 +38,9 @@
       "Bash(npm install @supabase/supabase-js)",
       "Bash(git commit:*)",
       "Bash(git push)",
-      "Bash(git pull)"
+      "Bash(git pull)",
+      "Bash(git add .github/workflows/deploy.yml)",
+      "Bash(git add -A)"
     ]
   }
 }

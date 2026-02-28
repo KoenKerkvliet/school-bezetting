@@ -7,6 +7,7 @@ import Dashboard from './components/Dashboard.jsx';
 import GroupsPage from './components/GroupsPage.jsx';
 import StaffPage from './components/StaffPage.jsx';
 import AdminDashboard from './components/AdminDashboard.jsx';
+import SyncStatusBar from './components/SyncStatusBar.jsx';
 
 function AppContent() {
   const [currentPage, setCurrentPage] = useState('dashboard');
@@ -57,6 +58,7 @@ function MainApp() {
   return (
     <AppProvider>
       <AppContent />
+      <SyncStatusBar />
     </AppProvider>
   );
 }

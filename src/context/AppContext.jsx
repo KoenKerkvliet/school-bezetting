@@ -1,5 +1,6 @@
-import React, { createContext, useContext, useReducer, useEffect, useState } from 'react';
+import React, { createContext, useContext, useReducer, useEffect, useState, useRef } from 'react';
 import * as db from '../services/database';
+import * as planningService from '../services/planningService';
 import { useAuth } from './AuthContext';
 
 const AppContext = createContext(null);
@@ -244,6 +245,16 @@ export function AppProvider({ children }) {
   const [error, setError] = useState(null);
   const { organizationId, isAuthenticated } = useAuth();
 
+  // Sync state management
+  const [syncQueue, setSyncQueue] = useState([]);
+  const [syncInProgress, setSyncInProgress] = useState(false);
+  const [syncError, setSyncError] = useState(null);
+  const [lastSyncTime, setLastSyncTime] = useState(null);
+
+  // Track previous state for mutation detection
+  const prevStateRef = useRef(initialState);
+  const lastConfirmedStateRef = useRef(initialState);
+
   // Load data from Supabase on mount or when organizationId changes
   useEffect(() => {
     const loadData = async () => {
@@ -293,12 +304,70 @@ export function AppProvider({ children }) {
     loadData();
   }, [organizationId, isAuthenticated]);
 
-  // Save to Supabase when state changes (debounced)
+  // Effect 1: Mutation detector - queue changes for sync
+  useEffect(() => {
+    if (loading || !organizationId) return;
+
+    // Detect what changed since last confirmed state
+    const changes = detectStateChanges(prevStateRef.current, state);
+
+    if (changes.length > 0) {
+      // Queue as sync jobs
+      const newJobs = changes.map(change => ({
+        id: generateId(),
+        action: change.action,
+        payload: change.data,
+        timestamp: Date.now(),
+      }));
+
+      setSyncQueue(prev => [...prev, ...newJobs]);
+
+      // Instant localStorage backup (don't wait for Supabase)
+      localStorage.setItem('schoolPlanning', JSON.stringify(state));
+
+      // Update prev state for next comparison
+      prevStateRef.current = JSON.parse(JSON.stringify(state));
+    }
+  }, [state, organizationId, loading]);
+
+  // Effect 2: Sync worker - process queue every 3 seconds
+  useEffect(() => {
+    if (!organizationId || syncInProgress || syncQueue.length === 0) return;
+
+    const timer = setTimeout(async () => {
+      setSyncInProgress(true);
+      try {
+        const result = await planningService.syncStateToSupabase(
+          organizationId,
+          lastConfirmedStateRef.current,
+          state
+        );
+
+        if (result.success) {
+          setSyncQueue([]);
+          setLastSyncTime(new Date());
+          setSyncError(null);
+          lastConfirmedStateRef.current = JSON.parse(JSON.stringify(state));
+        } else {
+          // Keep queue for retry, show first error
+          setSyncError(result.errors?.[0] || 'Sync failed');
+        }
+      } catch (err) {
+        setSyncError(err.message);
+        console.error('Sync worker error:', err);
+      } finally {
+        setSyncInProgress(false);
+      }
+    }, 3000); // Process every 3 seconds
+
+    return () => clearTimeout(timer);
+  }, [syncQueue, syncInProgress, organizationId, state]);
+
+  // Fallback: Save to localStorage on state change (insurance)
   useEffect(() => {
     if (loading) return;
 
     const timer = setTimeout(() => {
-      // Save to localStorage as backup
       localStorage.setItem('schoolPlanning', JSON.stringify(state));
     }, 1000);
 
@@ -306,7 +375,16 @@ export function AppProvider({ children }) {
   }, [state, loading]);
 
   return (
-    <AppContext.Provider value={{ state, dispatch, loading, error }}>
+    <AppContext.Provider value={{
+      state,
+      dispatch,
+      loading,
+      error,
+      syncQueue,
+      syncInProgress,
+      syncError,
+      lastSyncTime,
+    }}>
       {children}
     </AppContext.Provider>
   );
@@ -335,4 +413,89 @@ export const GROUP_COLORS = [
 
 export function generateId() {
   return Math.random().toString(36).slice(2, 10);
+}
+
+/**
+ * Detect what changed between two states
+ * Returns array of { action, data } objects
+ */
+function detectStateChanges(prevState = {}, currentState = {}) {
+  const changes = [];
+
+  // Compare groups
+  compareArrays(
+    prevState.groups || [],
+    currentState.groups || [],
+    changes,
+    'group'
+  );
+
+  // Compare units
+  compareArrays(
+    prevState.units || [],
+    currentState.units || [],
+    changes,
+    'unit'
+  );
+
+  // Compare staff
+  compareArrays(
+    prevState.staff || [],
+    currentState.staff || [],
+    changes,
+    'staff'
+  );
+
+  // Compare absences
+  compareArrays(
+    prevState.absences || [],
+    currentState.absences || [],
+    changes,
+    'absence'
+  );
+
+  // Compare timeAbsences
+  compareArrays(
+    prevState.timeAbsences || [],
+    currentState.timeAbsences || [],
+    changes,
+    'timeAbsence'
+  );
+
+  return changes;
+}
+
+function compareArrays(prevArr, currArr, changes, entityType) {
+  const currIds = new Set(currArr.map(item => item.id));
+  const prevIds = new Set(prevArr.map(item => item.id));
+
+  // Deletions: in prev but not in curr
+  prevArr.forEach(prevItem => {
+    if (!currIds.has(prevItem.id)) {
+      changes.push({
+        action: `DELETE_${entityType.toUpperCase()}`,
+        data: prevItem.id, // For deletes, just the ID
+      });
+    }
+  });
+
+  // Updates & Additions
+  currArr.forEach(currItem => {
+    const prevItem = prevArr.find(p => p.id === currItem.id);
+    if (prevItem) {
+      // Check if changed
+      if (JSON.stringify(prevItem) !== JSON.stringify(currItem)) {
+        changes.push({
+          action: `UPDATE_${entityType.toUpperCase()}`,
+          data: currItem,
+        });
+      }
+    } else {
+      // New item
+      changes.push({
+        action: `ADD_${entityType.toUpperCase()}`,
+        data: currItem,
+      });
+    }
+  });
 }
