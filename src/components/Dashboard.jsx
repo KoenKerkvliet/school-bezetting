@@ -615,6 +615,25 @@ function DayDetailModal({
                 </div>
               </div>
             )}
+
+            {/* Absent staff */}
+            {absentStaff.length > 0 && (
+              <div className="pt-2 border-t border-gray-100">
+                <h3 className="font-bold text-gray-700 text-sm mb-2 pb-1 border-b border-gray-200 flex items-center gap-1.5">
+                  <UserX className="w-4 h-4 text-amber-500" />
+                  Afwezig ({absentStaff.length})
+                </h3>
+                <div className="space-y-1">
+                  {absentStaff.map(s => (
+                    <div key={s.id} className="flex items-center gap-2 text-xs bg-amber-50 text-amber-700 border border-amber-200 rounded px-2.5 py-1.5">
+                      <UserX className="w-3 h-3 flex-shrink-0" />
+                      <span className="line-through font-medium flex-1">{s.name}</span>
+                      <span className="text-amber-500 font-semibold ml-auto">({s.reason || 'afwezig'})</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
