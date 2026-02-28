@@ -325,6 +325,8 @@ export default function Dashboard() {
                     const unmanned = isGroupUnmanned(group.id, date);
                     const hasAbsent = gs.some(s => s.absent);
                     const hasTimeAbsent = gs.some(s => !s.absent && s.timeAbsences?.length > 0);
+                    const availableStaffCount = gs.filter(s => !s.absent).length;
+                    const isOverstaffed = availableStaffCount > 1;
 
                     return (
                       <div
@@ -333,6 +335,8 @@ export default function Dashboard() {
                         className={`rounded-lg px-2 py-1.5 text-xs border cursor-pointer hover:brightness-95 transition-all ${
                           unmanned
                             ? 'bg-red-50 border-red-300'
+                            : isOverstaffed
+                            ? 'bg-yellow-50 border-yellow-300'
                             : (hasAbsent || hasTimeAbsent)
                             ? 'bg-amber-50 border-amber-200'
                             : 'bg-green-50 border-green-200'
@@ -365,9 +369,11 @@ export default function Dashboard() {
                             </span>
                           )}
                           {unmanned ? (
-                            <AlertTriangle className="w-3 h-3 text-red-500 ml-auto flex-shrink-0" />
+                            <AlertTriangle className="w-3 h-3 text-red-500 ml-auto flex-shrink-0" title="Onbemand" />
+                          ) : isOverstaffed ? (
+                            <AlertTriangle className="w-3 h-3 text-yellow-500 ml-auto flex-shrink-0" title="Te veel medewerkers!" />
                           ) : (
-                            <CheckCircle className="w-3 h-3 text-green-500 ml-auto flex-shrink-0" />
+                            <CheckCircle className="w-3 h-3 text-green-500 ml-auto flex-shrink-0" title="OK" />
                           )}
                         </div>
                       </div>
