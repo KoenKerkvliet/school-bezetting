@@ -184,7 +184,7 @@ export function dbTimeAbsenceToApp(db) {
   return {
     id: db.id,
     staff_id: db.staff_id,
-    date: db.start_date,
+    date: db.date,
     startTime: db.start_time,
     endTime: db.end_time,
     reason: db.reason,
@@ -195,7 +195,7 @@ export function appTimeAbsenceToDb(app, orgId) {
   return {
     id: app.id,
     staff_id: app.staff_id,
-    start_date: formatDateForDb(app.date),
+    date: formatDateForDb(app.date),
     start_time: app.startTime,
     end_time: app.endTime,
     reason: app.reason,
