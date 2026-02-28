@@ -46,6 +46,7 @@ export default function GroupsPage() {
   const { groups, units } = state;
 
   const [tab, setTab] = useState('groups'); // 'groups' | 'units'
+  const [sortAsc, setSortAsc] = useState(true); // true = A→Z, false = Z→A
 
   // Group modal state
   const [groupModal, setGroupModal] = useState(null); // null | { mode:'add'|'edit', data }
@@ -120,13 +121,24 @@ export default function GroupsPage() {
             Beheer de lesgroepen en units van jouw school
           </p>
         </div>
-        <button
-          onClick={tab === 'groups' ? openAddGroup : openAddUnit}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm"
-        >
-          <Plus className="w-4 h-4" />
-          {tab === 'groups' ? 'Nieuwe groep' : 'Nieuwe unit'}
-        </button>
+        <div className="flex items-center gap-2">
+          {tab === 'groups' && (
+            <button
+              onClick={() => setSortAsc(!sortAsc)}
+              className="px-3 py-2 border border-gray-300 text-gray-700 bg-white rounded-lg hover:bg-gray-50 transition-colors font-medium text-sm"
+              title={sortAsc ? 'Sorteren: A → Z' : 'Sorteren: Z → A'}
+            >
+              {sortAsc ? '↑ A–Z' : '↓ Z–A'}
+            </button>
+          )}
+          <button
+            onClick={tab === 'groups' ? openAddGroup : openAddUnit}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm"
+          >
+            <Plus className="w-4 h-4" />
+            {tab === 'groups' ? 'Nieuwe groep' : 'Nieuwe unit'}
+          </button>
+        </div>
       </div>
 
       {/* Tabs */}
@@ -163,7 +175,10 @@ export default function GroupsPage() {
             />
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {[...groups].sort((a, b) => a.name.localeCompare(b.name, 'nl')).map(group => {
+              {[...groups].sort((a, b) => {
+                const cmp = a.name.localeCompare(b.name, 'nl');
+                return sortAsc ? cmp : -cmp;
+              }).map(group => {
                 const unit = units.find(u => u.id === group.unitId);
                 return (
                   <div key={group.id} className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden hover:shadow-md transition-shadow">
