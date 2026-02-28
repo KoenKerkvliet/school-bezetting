@@ -16,7 +16,7 @@
  *
  * staff_schedule: id, staff_id, day, schedule_type, group_id, unit_id, created_at
  *
- * absences: id, staff_id, start_date, reason, organization_id, created_at
+ * absences: id, staff_id, start_date, end_date, reason, organization_id, created_at
  *
  * time_absences: id, staff_id, start_date, end_date, start_time, end_time, reason,
  *                organization_id, created_at
@@ -167,10 +167,12 @@ export function dbAbsenceToApp(db) {
 }
 
 export function appAbsenceToDb(app, orgId) {
+  const formattedDate = formatDateForDb(app.date);
   return {
     id: app.id,
     staff_id: app.staff_id,
-    start_date: formatDateForDb(app.date),
+    start_date: formattedDate,
+    end_date: formattedDate,
     reason: app.reason,
     organization_id: orgId,
   }
