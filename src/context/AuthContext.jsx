@@ -1,8 +1,48 @@
 import React, { createContext, useContext, useState, useEffect } from 'react'
-import * as authService from '../services/authService'
+import { supabase } from '../services/supabaseClient'
 import * as userService from '../services/userService'
 
 const AuthContext = createContext(null)
+
+// Helper: fetch user data from users table
+async function fetchUserData(userId) {
+  try {
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', userId)
+      .single()
+    return error ? null : data
+  } catch {
+    return null
+  }
+}
+
+// Helper: apply auth state to setters
+function applyAuthState(session, userData, setters) {
+  if (session?.user) {
+    setters.setUser(session.user)
+    setters.setIsAuthenticated(true)
+    setters.setIsEmailVerified(!!session.user.email_confirmed_at)
+    setters.setError(null)
+
+    if (userData) {
+      setters.setUserData(userData)
+      setters.setRole(userData.role)
+      setters.setOrganizationId(userData.organization_id)
+      const perms = userService.getRolePermissions(userData.role)
+      setters.setPermissions(perms)
+    }
+  } else {
+    setters.setUser(null)
+    setters.setUserData(null)
+    setters.setIsAuthenticated(false)
+    setters.setIsEmailVerified(false)
+    setters.setRole(null)
+    setters.setPermissions([])
+    setters.setOrganizationId(null)
+  }
+}
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
@@ -15,53 +55,37 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
+  const setters = { setUser, setUserData, setIsAuthenticated, setIsEmailVerified, setRole, setPermissions, setOrganizationId, setError }
+
   // Check auth state on mount
   useEffect(() => {
-    let unsubscribe = null
-
-    const checkAuth = () => {
-      try {
-        unsubscribe = authService.onAuthStateChange(async (authState) => {
-          if (authState.isAuthenticated && authState.user) {
-            setUser(authState.user)
-            setIsEmailVerified(authState.isEmailVerified)
-
-            // Get user data from users table
-            if (authState.userData) {
-              setUserData(authState.userData)
-              setRole(authState.userData.role)
-              setOrganizationId(authState.userData.organization_id)
-
-              // Set permissions based on role
-              const userPermissions = userService.getRolePermissions(authState.userData.role)
-              setPermissions(userPermissions)
-            }
-
-            setIsAuthenticated(true)
-            setError(null)
-          } else {
-            setUser(null)
-            setUserData(null)
-            setIsAuthenticated(false)
-            setIsEmailVerified(false)
-            setRole(null)
-            setPermissions([])
-            setOrganizationId(null)
-          }
-          setLoading(false)
-        })
-      } catch (err) {
-        console.error('Auth check error:', err)
-        setError(err.message)
-        setLoading(false)
+    // Step 1: Check current session immediately
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (session?.user) {
+        const ud = await fetchUserData(session.user.id)
+        applyAuthState(session, ud, setters)
+      } else {
+        applyAuthState(null, null, setters)
       }
-    }
+      setLoading(false)
+    }).catch(() => {
+      setLoading(false)
+    })
 
-    checkAuth()
+    // Step 2: Listen for future auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (_event, session) => {
+        if (session?.user) {
+          const ud = await fetchUserData(session.user.id)
+          applyAuthState(session, ud, setters)
+        } else {
+          applyAuthState(null, null, setters)
+        }
+      }
+    )
 
-    // Cleanup on unmount
     return () => {
-      if (unsubscribe) unsubscribe()
+      subscription.unsubscribe()
     }
   }, [])
 
