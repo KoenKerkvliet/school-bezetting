@@ -1,12 +1,13 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { format, parseISO } from 'date-fns';
 import { nl } from 'date-fns/locale';
-import { Clock, AlertCircle, ArrowLeft } from 'lucide-react';
+import { Clock, AlertCircle, ArrowLeft, Trash2 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 
 export default function AbsencePage({ onBack }) {
-  const { state } = useApp();
+  const { state, dispatch } = useApp();
   const { absences, timeAbsences, staff } = state;
+  const [confirmDelete, setConfirmDelete] = useState(null);
 
   // Create a staff map for quick lookup
   const staffMap = useMemo(() => {
@@ -42,6 +43,15 @@ export default function AbsencePage({ onBack }) {
 
   const formatDate = (date) => {
     return format(date, 'EEEE d MMMM yyyy', { locale: nl });
+  };
+
+  const deleteAbsence = (item) => {
+    if (item.type === 'full') {
+      dispatch({ type: 'DELETE_ABSENCE', payload: item.id });
+    } else {
+      dispatch({ type: 'DELETE_TIME_ABSENCE', payload: item.id });
+    }
+    setConfirmDelete(null);
   };
 
   return (
@@ -107,10 +117,40 @@ export default function AbsencePage({ onBack }) {
                     </p>
                   </div>
 
-                  <div className="text-right text-xs text-gray-400">
-                    {item.type === 'full' ? 'Ziekmeling' : 'Afwezigheid'}
+                  <div className="flex flex-col items-end gap-2">
+                    <div className="text-xs text-gray-400">
+                      {item.type === 'full' ? 'Ziekmeling' : 'Afwezigheid'}
+                    </div>
+                    <button
+                      onClick={() => setConfirmDelete(item)}
+                      className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                      title="Verwijderen"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
                   </div>
                 </div>
+
+                {/* Delete confirmation */}
+                {confirmDelete?.id === item.id && (
+                  <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded flex items-center justify-between">
+                    <p className="text-sm text-red-700 font-medium">Verwijderd? Deze actie kan niet ongedaan gemaakt worden.</p>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => setConfirmDelete(null)}
+                        className="px-3 py-1 text-sm rounded bg-gray-200 hover:bg-gray-300 text-gray-800 transition-colors"
+                      >
+                        Annuleren
+                      </button>
+                      <button
+                        onClick={() => deleteAbsence(item)}
+                        className="px-3 py-1 text-sm rounded bg-red-600 hover:bg-red-700 text-white transition-colors font-medium"
+                      >
+                        Verwijderen
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
           </div>
