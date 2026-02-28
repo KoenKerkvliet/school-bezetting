@@ -475,13 +475,7 @@ export default function Dashboard({ initialDate, onInitialDateUsed }) {
                         {unmannedCount} onbemand
                       </span>
                     )}
-                    {absentCount > 0 && (
-                      <span className="inline-flex items-center gap-0.5 text-xs bg-amber-500 text-white rounded px-1.5 py-0.5 font-medium">
-                        <UserX className="w-2.5 h-2.5" />
-                        {absentCount} afwezig
-                      </span>
-                    )}
-                    {unmannedCount === 0 && absentCount === 0 && (
+                    {unmannedCount === 0 && (
                       <span className="inline-flex items-center gap-0.5 text-xs bg-green-500 text-white rounded px-1.5 py-0.5 font-medium">
                         <CheckCircle className="w-2.5 h-2.5" />
                         OK
