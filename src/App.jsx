@@ -4,6 +4,7 @@ import { AppProvider, useApp } from './context/AppContext.jsx';
 import ProtectedRoute from './components/ProtectedRoute.jsx';
 import Navbar from './components/Navbar.jsx';
 import Dashboard from './components/Dashboard.jsx';
+import AbsencePage from './components/AbsencePage.jsx';
 import GroupsPage from './components/GroupsPage.jsx';
 import StaffPage from './components/StaffPage.jsx';
 import AdminDashboard from './components/AdminDashboard.jsx';
@@ -47,6 +48,7 @@ function AppContent() {
       <Navbar currentPage={currentPage} setCurrentPage={setCurrentPage} />
       <main className="flex-1 container mx-auto px-4 py-6" style={{ maxWidth: '1600px' }}>
         {currentPage === 'dashboard' && <Dashboard />}
+        {currentPage === 'absence' && <AbsencePage onBack={() => setCurrentPage('dashboard')} />}
         {currentPage === 'groups' && <GroupsPage />}
         {currentPage === 'staff' && <StaffPage />}
       </main>

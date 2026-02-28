@@ -1,11 +1,12 @@
 import React from 'react';
-import { LayoutDashboard, BookOpen, Users, GraduationCap, Settings, LogOut } from 'lucide-react';
+import { LayoutDashboard, BookOpen, Users, Calendar, GraduationCap, Settings, LogOut } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 const navItems = [
-  { id: 'dashboard', label: 'Dashboard',  icon: LayoutDashboard },
-  { id: 'staff',     label: "Collega's",  icon: Users },
-  { id: 'groups',    label: 'Groepen',    icon: BookOpen },
+  { id: 'dashboard', label: 'Dashboard',    icon: LayoutDashboard },
+  { id: 'absence',   label: 'Afwezigheid',  icon: Calendar },
+  { id: 'staff',     label: "Collega's",    icon: Users },
+  { id: 'groups',    label: 'Groepen',      icon: BookOpen },
 ];
 
 export default function Navbar({ currentPage, setCurrentPage }) {
