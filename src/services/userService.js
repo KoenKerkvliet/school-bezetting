@@ -1,10 +1,10 @@
 import { supabase } from './supabaseClient'
-import { sendInviteEmail } from './emailService'
 
 // ============ USER MANAGEMENT (Admin Only) ============
 
 /**
  * Create new user (admin only - creates account and sends invite email via Emailit)
+ * Server-side via Edge Function to safely use admin API
  * @param {string} email
  * @param {string} firstName
  * @param {string} lastName
@@ -14,62 +14,24 @@ import { sendInviteEmail } from './emailService'
  * @returns {Promise<object>} user object
  */
 export async function createUser(email, firstName, lastName, role, organizationId, schoolName = 'School Bezetting') {
-  // Generate temporary password
-  const tempPassword = generateTemporaryPassword()
-
   try {
-    // Create auth user via admin API
-    const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-      email,
-      password: tempPassword,
-      email_confirm: false, // User must verify email
+    // Call Edge Function to create user server-side (safe for admin API)
+    const { data, error } = await supabase.functions.invoke('create-user', {
+      body: {
+        email,
+        firstName,
+        lastName,
+        role,
+        organizationId,
+        schoolName,
+      },
     })
 
-    if (authError) throw new Error(authError.message)
-
-    const userId = authData.user.id
-
-    // Create user record in users table
-    const { data: userData, error: userError } = await supabase
-      .from('users')
-      .insert([
-        {
-          id: userId,
-          organization_id: organizationId,
-          email,
-          first_name: firstName,
-          last_name: lastName,
-          role,
-        },
-      ])
-      .select()
-
-    if (userError) throw userError
-
-    // Create profile
-    await supabase
-      .from('profiles')
-      .insert([
-        {
-          user_id: userId,
-          first_name: firstName,
-          last_name: lastName,
-        },
-      ])
-
-    // Send branded invitation email via Emailit
-    const resetUrl = `${window.location.origin}/set-password`
-    try {
-      await sendInviteEmail(email, firstName, resetUrl, schoolName)
-    } catch (emailErr) {
-      // If Emailit fails, fall back to Supabase's built-in email
-      console.warn('Emailit invite failed, falling back to Supabase:', emailErr.message)
-      await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/set-password`,
-      })
+    if (error) {
+      throw new Error(error.message || 'Failed to create user')
     }
 
-    return userData[0]
+    return data.user
   } catch (error) {
     throw new Error(`Failed to create user: ${error.message}`)
   }
@@ -261,14 +223,6 @@ export async function logAuditAction(
     console.error('Audit log error:', error)
     // Don't throw - audit failure shouldn't block operations
   }
-}
-
-/**
- * Generate temporary password for new user
- * @private
- */
-function generateTemporaryPassword() {
-  return Math.random().toString(36).slice(2, 15) + Math.random().toString(36).slice(2, 15)
 }
 
 /**
