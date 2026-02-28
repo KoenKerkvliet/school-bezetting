@@ -1,17 +1,19 @@
 import { supabase } from './supabaseClient'
+import { sendInviteEmail } from './emailService'
 
 // ============ USER MANAGEMENT (Admin Only) ============
 
 /**
- * Create new user (admin only - creates account and sends invite email)
+ * Create new user (admin only - creates account and sends invite email via Emailit)
  * @param {string} email
  * @param {string} firstName
  * @param {string} lastName
  * @param {string} role - 'Admin', 'Editor', 'Viewer'
  * @param {string} organizationId
+ * @param {string} schoolName - Organization name for email template
  * @returns {Promise<object>} user object
  */
-export async function createUser(email, firstName, lastName, role, organizationId) {
+export async function createUser(email, firstName, lastName, role, organizationId, schoolName = 'School Bezetting') {
   // Generate temporary password
   const tempPassword = generateTemporaryPassword()
 
@@ -55,10 +57,17 @@ export async function createUser(email, firstName, lastName, role, organizationI
         },
       ])
 
-    // Send invitation email
-    await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/set-password?token={token}`,
-    })
+    // Send branded invitation email via Emailit
+    const resetUrl = `${window.location.origin}/set-password`
+    try {
+      await sendInviteEmail(email, firstName, resetUrl, schoolName)
+    } catch (emailErr) {
+      // If Emailit fails, fall back to Supabase's built-in email
+      console.warn('Emailit invite failed, falling back to Supabase:', emailErr.message)
+      await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/set-password`,
+      })
+    }
 
     return userData[0]
   } catch (error) {

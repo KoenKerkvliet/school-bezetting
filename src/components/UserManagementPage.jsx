@@ -78,12 +78,14 @@ export default function UserManagementPage() {
 
     try {
       setLoading(true)
+      const schoolName = getSchoolName(targetOrgId)
       const newUser = await userService.createUser(
         formData.email,
         formData.firstName,
         formData.lastName,
         formData.role,
-        targetOrgId
+        targetOrgId,
+        schoolName
       )
 
       setUsers([newUser, ...users])
