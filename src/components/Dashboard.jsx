@@ -50,7 +50,7 @@ function workingHoursCover(daySchedule, requiredStart, requiredEnd) {
   return daySchedule.startTime <= requiredStart && daySchedule.endTime >= requiredEnd;
 }
 
-export default function Dashboard() {
+export default function Dashboard({ initialDate, onInitialDateUsed }) {
   const { state, dispatch } = useApp();
   const { groups, units, staff, absences, timeAbsences } = state;
 
@@ -65,6 +65,16 @@ export default function Dashboard() {
   });
   const [selectedDay, setSelectedDay] = useState(null);
   const [selectedGroup, setSelectedGroup] = useState(null); // { group, date }
+
+  // Handle navigation from other pages (e.g. AbsencePage → specific day)
+  useEffect(() => {
+    if (initialDate) {
+      setCurrentWeek(initialDate);
+      setSelectedDay(initialDate);
+      setSelectedGroup(null);
+      if (onInitialDateUsed) onInitialDateUsed();
+    }
+  }, [initialDate]);
 
   // Save currentWeek to localStorage whenever it changes
   useEffect(() => {
@@ -171,11 +181,24 @@ export default function Dashboard() {
     return { unmannedCount, absentCount };
   }
 
-  /** Staff available to cover a group that day (not absent, not tied to an active group) */
+  /** Staff available to cover a group that day (not absent, not tied to an active group, not already assigned as replacement) */
   function getAvailableStaff(date) {
     const dayKey = getDayKey(date);
+    const dateStr = formatLocalDate(date);
+
+    // Get all date-specific assignments for this day (replacements already placed)
+    const dayAssignments = (state.staffDateAssignments || [])
+      .filter(a => a.date === dateStr);
+
     return staff.filter(s => {
       if (isAbsent(s.id, date)) return false;
+
+      // Exclude staff already assigned as whole-day replacement somewhere
+      const hasWholeDayAssignment = dayAssignments.some(
+        a => a.staffId === s.id && !a.startTime
+      );
+      if (hasWholeDayAssignment) return false;
+
       const sched = s.schedule?.[dayKey];
       if (!sched || sched.type === 'none') return true;
       if (sched.type === 'unit') return true;
@@ -498,6 +521,9 @@ export default function Dashboard() {
                     const wholeDayStaffCount = gs.filter(s => !s.absent && !s.replacementStartTime).length;
                     const isOverstaffed = wholeDayStaffCount > 1;
 
+                    // Absent but covered by replacement → green with orange border
+                    const absentButCovered = hasAbsent && !unmanned;
+
                     return (
                       <div
                         key={group.id}
@@ -507,7 +533,9 @@ export default function Dashboard() {
                             ? 'bg-red-50 border-red-300'
                             : isOverstaffed
                             ? 'bg-yellow-50 border-yellow-300'
-                            : (hasAbsent || hasTimeAbsent)
+                            : absentButCovered
+                            ? 'bg-green-50 border-orange-400'
+                            : hasTimeAbsent
                             ? 'bg-amber-50 border-amber-200'
                             : 'bg-green-50 border-green-200'
                         }`}

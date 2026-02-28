@@ -12,8 +12,14 @@ import SyncStatusBar from './components/SyncStatusBar.jsx';
 
 function AppContent() {
   const [currentPage, setCurrentPage] = useState('dashboard');
+  const [navigateDate, setNavigateDate] = useState(null);
   const { loading: appLoading, error: appError } = useApp();
   const { role } = useAuth();
+
+  const handleNavigateToDay = (date) => {
+    setNavigateDate(date);
+    setCurrentPage('dashboard');
+  };
 
   if (appLoading) {
     return (
@@ -47,8 +53,8 @@ function AppContent() {
     <div className="min-h-screen bg-gray-50 flex flex-col">
       <Navbar currentPage={currentPage} setCurrentPage={setCurrentPage} />
       <main className="flex-1 container mx-auto px-4 py-6" style={{ maxWidth: '1600px' }}>
-        {currentPage === 'dashboard' && <Dashboard />}
-        {currentPage === 'absence' && <AbsencePage onBack={() => setCurrentPage('dashboard')} />}
+        {currentPage === 'dashboard' && <Dashboard initialDate={navigateDate} onInitialDateUsed={() => setNavigateDate(null)} />}
+        {currentPage === 'absence' && <AbsencePage onBack={() => setCurrentPage('dashboard')} onNavigateToDay={handleNavigateToDay} />}
         {currentPage === 'groups' && <GroupsPage />}
         {currentPage === 'staff' && <StaffPage />}
       </main>

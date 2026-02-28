@@ -1,10 +1,10 @@
 import React, { useMemo, useState } from 'react';
 import { format, parseISO } from 'date-fns';
 import { nl } from 'date-fns/locale';
-import { Clock, AlertCircle, ArrowLeft, Trash2 } from 'lucide-react';
+import { Clock, AlertCircle, ArrowLeft, Trash2, Calendar } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 
-export default function AbsencePage({ onBack }) {
+export default function AbsencePage({ onBack, onNavigateToDay }) {
   const { state, dispatch } = useApp();
   const { absences, timeAbsences, staff } = state;
   const [confirmDelete, setConfirmDelete] = useState(null);
@@ -126,13 +126,22 @@ export default function AbsencePage({ onBack }) {
                         : 'Tijdelijke afwezigheid'
                       }
                     </div>
-                    <button
-                      onClick={() => setConfirmDelete(item)}
-                      className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
-                      title="Verwijderen"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => onNavigateToDay && onNavigateToDay(item.date)}
+                        className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                        title="Bekijk dag op dashboard"
+                      >
+                        <Calendar className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => setConfirmDelete(item)}
+                        className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                        title="Verwijderen"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
                 </div>
 
