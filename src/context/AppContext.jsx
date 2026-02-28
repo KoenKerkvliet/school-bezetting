@@ -4,7 +4,7 @@ import { supabase } from '../services/supabaseClient';
 import { useAuth } from './AuthContext';
 import {
   appGroupToDb, appUnitToDb, appStaffToDb, appStaffToScheduleRows,
-  appAbsenceToDb, appTimeAbsenceToDb,
+  appAbsenceToDb, appTimeAbsenceToDb, appStaffDateAssignmentToDb,
 } from '../services/dataMapper';
 
 const AppContext = createContext(null);
@@ -352,19 +352,28 @@ async function writeToSupabase(orgId, action) {
 
     // ── Date-specific staff assignments (replacements) ──
     case 'ADD_STAFF_DATE_ASSIGNMENT': {
-      // Date-specific assignments are stored locally for now
-      // Could be extended to sync to Supabase with a new table
-      console.log('[Sync] ADD_STAFF_DATE_ASSIGNMENT (local only):', p);
+      const row = appStaffDateAssignmentToDb(p, orgId);
+      console.log('[Sync] ADD_STAFF_DATE_ASSIGNMENT row:', row);
+      const { error } = await supabase.from('staff_date_assignments').insert([row]);
+      if (error) {
+        console.error('[Sync] ADD_STAFF_DATE_ASSIGNMENT error:', error);
+        throw error;
+      }
       return;
     }
     case 'DELETE_STAFF_DATE_ASSIGNMENT': {
-      // Date-specific assignments are stored locally for now
-      console.log('[Sync] DELETE_STAFF_DATE_ASSIGNMENT (local only):', p);
+      const { error } = await supabase.from('staff_date_assignments').delete().eq('id', p);
+      if (error) throw error;
       return;
     }
     case 'DELETE_STAFF_DATE_ASSIGNMENTS_BY_DATE_AND_STAFF': {
-      // Date-specific assignments are stored locally for now
-      console.log('[Sync] DELETE_STAFF_DATE_ASSIGNMENTS_BY_DATE_AND_STAFF (local only):', p);
+      // Delete all assignments for a specific staff on a specific date
+      const { error } = await supabase.from('staff_date_assignments')
+        .delete()
+        .eq('staff_id', p.staffId)
+        .eq('date', p.date)
+        .eq('organization_id', orgId);
+      if (error) throw error;
       return;
     }
 

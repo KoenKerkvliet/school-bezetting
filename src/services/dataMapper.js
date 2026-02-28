@@ -203,3 +203,26 @@ export function appTimeAbsenceToDb(app, orgId) {
     organization_id: orgId,
   }
 }
+
+// ── Staff Date Assignments ────────────────────────────────────────────
+
+export function dbStaffDateAssignmentToApp(db) {
+  return {
+    id: db.id,
+    staffId: db.staff_id,
+    groupId: db.group_id,
+    date: db.date,
+    type: db.type,
+  }
+}
+
+export function appStaffDateAssignmentToDb(app, orgId) {
+  return {
+    id: app.id,
+    staff_id: app.staffId,
+    group_id: app.groupId,
+    date: app.date,
+    type: app.type,
+    organization_id: orgId,
+  }
+}
