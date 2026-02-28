@@ -12,6 +12,7 @@ import ProfilePage from './components/ProfilePage.jsx';
 import LogbookPage from './components/LogbookPage.jsx';
 import TestEmailPage from './components/TestEmailPage.jsx';
 import UserDetailPage from './components/UserDetailPage.jsx';
+import ChangelogPage from './components/ChangelogPage.jsx';
 import SyncStatusBar from './components/SyncStatusBar.jsx';
 
 function AppContent() {
@@ -73,6 +74,7 @@ function AppContent() {
           {currentPage === 'admin' && <AdminDashboard onBack={() => setCurrentPage('dashboard')} onNavigateToUserDetail={handleNavigateToUserDetail} />}
           {currentPage === 'user-detail' && selectedUserId && <UserDetailPage userId={selectedUserId} onBack={handleBackFromUserDetail} />}
           {currentPage === 'profile' && <ProfilePage />}
+          {currentPage === 'changelog' && <ChangelogPage />}
         </div>
       </main>
     </div>

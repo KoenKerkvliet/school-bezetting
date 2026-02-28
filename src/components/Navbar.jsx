@@ -176,6 +176,16 @@ export default function Navbar({ currentPage, setCurrentPage }) {
           Uitloggen
         </button>
       </div>
+
+      {/* Version footer */}
+      <div className="px-3 pb-3 pt-1 border-t border-slate-700">
+        <button
+          onClick={() => handleNavClick('changelog')}
+          className="w-full text-center text-xs text-slate-500 hover:text-slate-300 transition-colors"
+        >
+          v1.0.0
+        </button>
+      </div>
     </aside>
   );
 }
