@@ -15,6 +15,15 @@ function getWeekDates(base) {
   return DAYS.map((_, i) => addDays(monday, i));
 }
 
+function formatLocalDate(date) {
+  // Format date as YYYY-MM-DD in local timezone (not UTC)
+  // This prevents timezone shifts when storing/loading dates
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 function getDayKey(date) {
   // getDay(): 0=Sun,1=Mon,...,5=Fri
   const dayIndex = date.getDay() - 1; // 0=Mon,...,4=Fri
@@ -872,7 +881,7 @@ function StaffActionModal({ staff, date, allAbsences, allTimeAbsences, dispatch,
 
   function markSick() {
     dispatch({ type: 'ADD_ABSENCE', payload: {
-      id: generateId(), staff_id: staff.id, date: date.toISOString(), reason: 'Ziek',
+      id: generateId(), staff_id: staff.id, date: formatLocalDate(date), reason: 'Ziek',
     }});
     onClose();
   }
@@ -887,7 +896,7 @@ function StaffActionModal({ staff, date, allAbsences, allTimeAbsences, dispatch,
     dispatch({ type: 'ADD_TIME_ABSENCE', payload: {
       id: generateId(),
       staff_id: staff.id,
-      date: date.toISOString(),
+      date: formatLocalDate(date),
       startTime: timeForm.startTime,
       endTime: timeForm.endTime,
       reason: timeForm.reason,
