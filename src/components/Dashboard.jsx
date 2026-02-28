@@ -243,10 +243,19 @@ export default function Dashboard({ initialDate, onInitialDateUsed }) {
         })
         .filter(Boolean);
 
-      // Collect unit support staff per unit
+      // Collect staff IDs who are whole-day replacements (not available for support)
+      const dateStr = formatLocalDate(date);
+      const wholeDayReplacementIds = new Set(
+        (state.staffDateAssignments || [])
+          .filter(a => a.date === dateStr && !a.startTime)
+          .map(a => a.staffId)
+      );
+
+      // Collect unit support staff per unit, excluding whole-day replacements
       const unitSupportData = units
         .map(unit => {
-          const unitStaff = getUnitStaff(unit.id, date);
+          const unitStaff = getUnitStaff(unit.id, date)
+            .filter(s => !wholeDayReplacementIds.has(s.id));
           if (unitStaff.length === 0) return null;
           return { unit, unitStaff };
         })
@@ -317,7 +326,6 @@ export default function Dashboard({ initialDate, onInitialDateUsed }) {
             } else {
               content += `<div style="font-size:9px;padding:1px 0 1px 8px;color:#4338ca;">`;
               content += `${s.name.split(' ')[0]}`;
-              if (s.role) content += ` <span style="color:#818cf8;font-size:8px;">(${s.role})</span>`;
               content += `</div>`;
             }
           });

@@ -195,7 +195,7 @@ export default function StaffPage() {
         <div className="space-y-6">
           {[
             { label: 'Leerkrachten', roles: ['Leerkracht'], color: 'text-blue-700', bg: 'bg-blue-50', border: 'border-blue-200' },
-            { label: 'Onderwijs Ondersteuners', roles: ['Onderwijs Ondersteuner'], color: 'text-green-700', bg: 'bg-green-50', border: 'border-green-200' },
+            { label: 'Onderwijsondersteuners', roles: ['Onderwijsondersteuner'], color: 'text-green-700', bg: 'bg-green-50', border: 'border-green-200' },
             { label: 'Onderwijsassistenten', roles: ['Onderwijsassistent'], color: 'text-yellow-700', bg: 'bg-yellow-50', border: 'border-yellow-200' },
             { label: 'Overige collega\'s', roles: ['Intern Begeleider', 'Directie', 'Overig'], color: 'text-gray-700', bg: 'bg-gray-50', border: 'border-gray-200' },
           ].map(section => {
@@ -223,7 +223,7 @@ export default function StaffPage() {
             // Border color per role
             const borderColor =
               member.role === 'Leerkracht' ? 'border-l-blue-500' :
-              member.role === 'Onderwijs Ondersteuner' ? 'border-l-green-500' :
+              member.role === 'Onderwijsondersteuner' ? 'border-l-green-500' :
               member.role === 'Onderwijsassistent' ? 'border-l-yellow-500' :
               'border-l-gray-300';
 
