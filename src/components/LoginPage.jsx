@@ -26,7 +26,14 @@ export default function LoginPage() {
         localStorage.removeItem('rememberEmail')
       }
     } catch (err) {
-      setError(err.message || 'Login mislukt. Controleer je email en wachtwoord.')
+      const msg = err.message || ''
+      if (msg.includes('Timeout')) {
+        setError('Verbinding met server duurt te lang. Probeer het opnieuw.')
+      } else if (msg.includes('Invalid login')) {
+        setError('Onjuist email of wachtwoord.')
+      } else {
+        setError(msg || 'Login mislukt. Controleer je email en wachtwoord.')
+      }
     } finally {
       setLoading(false)
     }

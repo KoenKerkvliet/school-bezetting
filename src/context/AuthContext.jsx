@@ -5,14 +5,24 @@ import * as userService from '../services/userService'
 
 const AuthContext = createContext(null)
 
-// Helper: fetch user data from users table (never throws)
+// Timeout wrapper — rejects after ms if promise hasn't resolved
+function withTimeout(promise, ms, label = '') {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) =>
+      setTimeout(() => reject(new Error(`Timeout: ${label} (${ms}ms)`)), ms)
+    ),
+  ])
+}
+
+// Helper: fetch user data from users table (never throws, has timeout)
 async function fetchUserData(userId) {
   try {
-    const { data, error } = await supabase
-      .from('users')
-      .select('*')
-      .eq('id', userId)
-      .single()
+    const { data, error } = await withTimeout(
+      supabase.from('users').select('*').eq('id', userId).single(),
+      5000,
+      'fetchUserData'
+    )
     return error ? null : data
   } catch {
     return null
@@ -71,14 +81,18 @@ export function AuthProvider({ children }) {
 
     async function init() {
       try {
-        const { data: { session } } = await supabase.auth.getSession()
+        const { data: { session } } = await withTimeout(
+          supabase.auth.getSession(),
+          3000,
+          'getSession'
+        )
         if (cancelled) return
         if (session?.user) {
           const ud = await fetchUserData(session.user.id)
           if (!cancelled) applySession(session, ud)
         }
       } catch (err) {
-        console.warn('[Auth] Init error:', err.message)
+        console.warn('[Auth] Init:', err.message)
       } finally {
         if (!cancelled) setLoading(false)
       }
@@ -98,38 +112,40 @@ export function AuthProvider({ children }) {
       }
     )
 
-    // Safety timeout: never stay loading longer than 4 seconds
-    const timeout = setTimeout(() => {
-      if (!cancelled) {
-        console.warn('[Auth] Timeout — forcing loading=false')
-        setLoading(false)
-      }
-    }, 4000)
-
     return () => {
       cancelled = true
-      clearTimeout(timeout)
       subscription.unsubscribe()
     }
   }, [])
 
-  // Sign in — does NOT set context loading (LoginPage has its own loading state)
+  // Sign in with 10s timeout
   const signIn = async (email, password) => {
     setError(null)
-    await authService.signIn(email, password)
-    // onAuthStateChange listener handles updating isAuthenticated etc.
+    await withTimeout(
+      authService.signIn(email, password),
+      10000,
+      'signIn'
+    )
   }
 
   // Sign up
   const signUp = async (email, password, firstName, lastName, orgId, role = 'Viewer') => {
     setError(null)
-    await authService.signUp(email, password, firstName, lastName, orgId, role)
+    await withTimeout(
+      authService.signUp(email, password, firstName, lastName, orgId, role),
+      15000,
+      'signUp'
+    )
   }
 
   // Log out
   const logout = async () => {
     setError(null)
-    await authService.logout()
+    try {
+      await withTimeout(authService.logout(), 5000, 'logout')
+    } catch {
+      // Force clear even if logout API call fails
+    }
     clearAuth()
   }
 
@@ -143,7 +159,11 @@ export function AuthProvider({ children }) {
   // Reset password
   const resetPassword = async (email) => {
     setError(null)
-    await authService.resetPassword(email)
+    await withTimeout(
+      authService.resetPassword(email),
+      10000,
+      'resetPassword'
+    )
   }
 
   // Check permission
