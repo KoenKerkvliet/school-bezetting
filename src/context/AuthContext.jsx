@@ -1,15 +1,15 @@
-import React, { createContext, useContext, useState, useEffect } from 'react'
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react'
 import { supabase } from '../services/supabaseClient'
 import * as authService from '../services/authService'
 import * as userService from '../services/userService'
 
 const AuthContext = createContext(null)
 
-// Helper: fetch user data with 5s timeout (never throws)
+// Helper: fetch user data with 3s timeout (never throws)
 async function fetchUserData(userId) {
   try {
     const controller = new AbortController()
-    const timer = setTimeout(() => controller.abort(), 5000)
+    const timer = setTimeout(() => controller.abort(), 3000)
     const { data, error } = await supabase
       .from('users')
       .select('*')
@@ -34,22 +34,15 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
-  function applySession(session, ud) {
-    if (session?.user) {
-      setUser(session.user)
-      setIsAuthenticated(true)
-      setIsEmailVerified(!!session.user.email_confirmed_at)
-      setError(null)
-      if (ud) {
-        setUserData(ud)
-        setRole(ud.role)
-        setOrganizationId(ud.organization_id)
-        setPermissions(userService.getRolePermissions(ud.role))
-      }
-    } else {
-      clearAuth()
+  // Apply user data (role, org, permissions) — called async after login
+  const applyUserData = useCallback((ud) => {
+    if (ud) {
+      setUserData(ud)
+      setRole(ud.role)
+      setOrganizationId(ud.organization_id)
+      setPermissions(userService.getRolePermissions(ud.role))
     }
-  }
+  }, [])
 
   function clearAuth() {
     setUser(null)
@@ -61,53 +54,61 @@ export function AuthProvider({ children }) {
     setOrganizationId(null)
   }
 
-  // Single listener approach — uses INITIAL_SESSION event (Supabase v2.39+)
+  // Auth listener — NON-BLOCKING: set auth state immediately, fetch user data in background
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+      (event, session) => {
         console.log('[Auth] Event:', event, session ? 'has session' : 'no session')
 
         if (session?.user) {
-          const ud = await fetchUserData(session.user.id)
-          applySession(session, ud)
+          // Immediately mark as authenticated (don't wait for user data)
+          setUser(session.user)
+          setIsAuthenticated(true)
+          setIsEmailVerified(!!session.user.email_confirmed_at)
+          setError(null)
+
+          // Fetch user data in background (role, org, permissions)
+          fetchUserData(session.user.id).then(applyUserData)
         } else {
           clearAuth()
         }
 
-        // Stop showing loading spinner after initial check
+        // Stop loading spinner on initial check
         if (event === 'INITIAL_SESSION') {
           setLoading(false)
         }
       }
     )
 
-    // Safety timeout in case INITIAL_SESSION never fires
+    // Safety timeout: if INITIAL_SESSION never fires, stop loading after 2s
     const timeout = setTimeout(() => {
       setLoading(false)
-    }, 3000)
+    }, 2000)
 
     return () => {
       clearTimeout(timeout)
       subscription.unsubscribe()
     }
-  }, [])
+  }, [applyUserData])
 
-  // Sign in with 10s timeout
+  // Sign in with real timeout using Promise.race
   const signIn = async (email, password) => {
     setError(null)
-    const controller = new AbortController()
-    const timer = setTimeout(() => controller.abort(), 10000)
+
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('Timeout')), 10000)
+    )
+
     try {
-      const { data, error: signInError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      })
-      clearTimeout(timer)
+      const { data, error: signInError } = await Promise.race([
+        supabase.auth.signInWithPassword({ email, password }),
+        timeoutPromise,
+      ])
+
       if (signInError) throw new Error(signInError.message)
       return data
     } catch (err) {
-      clearTimeout(timer)
-      if (err.name === 'AbortError') {
+      if (err.message === 'Timeout') {
         throw new Error('Verbinding met server duurt te lang. Probeer het opnieuw.')
       }
       throw err

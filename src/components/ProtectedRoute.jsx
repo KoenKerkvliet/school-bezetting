@@ -15,7 +15,7 @@ export default function ProtectedRoute({ children }) {
   // Failsafe: never show spinner longer than 6 seconds
   useEffect(() => {
     if (!loading) return
-    const timer = setTimeout(() => setForceReady(true), 6000)
+    const timer = setTimeout(() => setForceReady(true), 3000)
     return () => clearTimeout(timer)
   }, [loading])
 
