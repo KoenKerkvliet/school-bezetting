@@ -2,6 +2,10 @@ import React, { createContext, useContext, useReducer, useEffect, useState, useC
 import * as db from '../services/database';
 import { supabase } from '../services/supabaseClient';
 import { useAuth } from './AuthContext';
+import {
+  appGroupToDb, appUnitToDb, appStaffToDb, appStaffToScheduleRows,
+  appAbsenceToDb, appTimeAbsenceToDb,
+} from '../services/dataMapper';
 
 const AppContext = createContext(null);
 
@@ -189,36 +193,34 @@ export function AppProvider({ children }) {
   );
 }
 
-// ── Write a single action to Supabase ─────────────────────────────────
+// ── Write a single action to Supabase (with field mapping) ────────────
 async function writeToSupabase(orgId, action) {
   const p = action.payload;
 
   switch (action.type) {
     // ── Groups ──
     case 'ADD_GROUP': {
-      const { error } = await supabase.from('groups')
-        .insert([{ ...p, organization_id: orgId }]);
+      const row = appGroupToDb(p, orgId);
+      const { error } = await supabase.from('groups').insert([row]);
       if (error) throw error;
       return;
     }
     case 'UPDATE_GROUP': {
-      const { id, ...rest } = p;
+      const row = appGroupToDb(p, orgId);
+      const { id, organization_id, ...updates } = row;
       const { error } = await supabase.from('groups')
-        .update(rest)
-        .eq('id', id)
-        .eq('organization_id', orgId);
+        .update(updates).eq('id', id).eq('organization_id', orgId);
       if (error) throw error;
       return;
     }
     case 'DELETE_GROUP': {
-      // Cascade: remove from units.groupIds
+      // Cascade: remove from units.group_ids
       const { data: units } = await supabase.from('units')
-        .select('id, groupIds')
-        .eq('organization_id', orgId);
+        .select('id, group_ids').eq('organization_id', orgId);
       for (const unit of units || []) {
-        if (unit.groupIds?.includes(p)) {
+        if (unit.group_ids?.includes(p)) {
           await supabase.from('units')
-            .update({ groupIds: unit.groupIds.filter(id => id !== p) })
+            .update({ group_ids: unit.group_ids.filter(id => id !== p) })
             .eq('id', unit.id);
         }
       }
@@ -230,25 +232,24 @@ async function writeToSupabase(orgId, action) {
 
     // ── Units ──
     case 'ADD_UNIT': {
-      const { error } = await supabase.from('units')
-        .insert([{ ...p, organization_id: orgId }]);
+      const row = appUnitToDb(p, orgId);
+      const { error } = await supabase.from('units').insert([row]);
       if (error) throw error;
       return;
     }
     case 'UPDATE_UNIT': {
-      const { id, ...rest } = p;
+      const row = appUnitToDb(p, orgId);
+      const { id, organization_id, ...updates } = row;
       const { error } = await supabase.from('units')
-        .update(rest)
-        .eq('id', id)
-        .eq('organization_id', orgId);
+        .update(updates).eq('id', id).eq('organization_id', orgId);
       if (error) throw error;
       return;
     }
     case 'DELETE_UNIT': {
       // Cascade: unlink groups
       await supabase.from('groups')
-        .update({ unitId: null })
-        .eq('unitId', p)
+        .update({ unit_id: null })
+        .eq('unit_id', p)
         .eq('organization_id', orgId);
       const { error } = await supabase.from('units')
         .delete().eq('id', p).eq('organization_id', orgId);
@@ -258,24 +259,37 @@ async function writeToSupabase(orgId, action) {
 
     // ── Staff ──
     case 'ADD_STAFF': {
-      const { error } = await supabase.from('staff')
-        .insert([{ ...p, organization_id: orgId }]);
+      const row = appStaffToDb(p, orgId);
+      const { error } = await supabase.from('staff').insert([row]);
       if (error) throw error;
+      // Also save schedule rows
+      const schedRows = appStaffToScheduleRows(p);
+      if (schedRows.length > 0) {
+        const { error: sErr } = await supabase.from('staff_schedule').insert(schedRows);
+        if (sErr) console.warn('[Sync] Schedule insert warning:', sErr.message);
+      }
       return;
     }
     case 'UPDATE_STAFF': {
-      const { id, ...rest } = p;
+      const row = appStaffToDb(p, orgId);
+      const { id, organization_id, ...updates } = row;
       const { error } = await supabase.from('staff')
-        .update(rest)
-        .eq('id', id)
-        .eq('organization_id', orgId);
+        .update(updates).eq('id', id).eq('organization_id', orgId);
       if (error) throw error;
+      // Replace schedule: delete old rows, insert new
+      await supabase.from('staff_schedule').delete().eq('staff_id', p.id);
+      const schedRows = appStaffToScheduleRows(p);
+      if (schedRows.length > 0) {
+        const { error: sErr } = await supabase.from('staff_schedule').insert(schedRows);
+        if (sErr) console.warn('[Sync] Schedule update warning:', sErr.message);
+      }
       return;
     }
     case 'DELETE_STAFF': {
-      // Cascade: delete absences and time_absences
+      // Cascade
       await supabase.from('absences').delete().eq('staff_id', p);
       await supabase.from('time_absences').delete().eq('staff_id', p);
+      await supabase.from('staff_schedule').delete().eq('staff_id', p);
       const { error } = await supabase.from('staff')
         .delete().eq('id', p).eq('organization_id', orgId);
       if (error) throw error;
@@ -284,28 +298,26 @@ async function writeToSupabase(orgId, action) {
 
     // ── Absences ──
     case 'ADD_ABSENCE': {
-      const { error } = await supabase.from('absences')
-        .insert([{ ...p, organization_id: orgId }]);
+      const row = appAbsenceToDb(p, orgId);
+      const { error } = await supabase.from('absences').insert([row]);
       if (error) throw error;
       return;
     }
     case 'DELETE_ABSENCE': {
-      const { error } = await supabase.from('absences')
-        .delete().eq('id', p);
+      const { error } = await supabase.from('absences').delete().eq('id', p);
       if (error) throw error;
       return;
     }
 
     // ── Time absences ──
     case 'ADD_TIME_ABSENCE': {
-      const { error } = await supabase.from('time_absences')
-        .insert([{ ...p, organization_id: orgId }]);
+      const row = appTimeAbsenceToDb(p, orgId);
+      const { error } = await supabase.from('time_absences').insert([row]);
       if (error) throw error;
       return;
     }
     case 'DELETE_TIME_ABSENCE': {
-      const { error } = await supabase.from('time_absences')
-        .delete().eq('id', p);
+      const { error } = await supabase.from('time_absences').delete().eq('id', p);
       if (error) throw error;
       return;
     }

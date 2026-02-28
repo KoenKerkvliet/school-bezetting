@@ -5,24 +5,18 @@ import * as userService from '../services/userService'
 
 const AuthContext = createContext(null)
 
-// Timeout wrapper — rejects after ms if promise hasn't resolved
-function withTimeout(promise, ms, label = '') {
-  return Promise.race([
-    promise,
-    new Promise((_, reject) =>
-      setTimeout(() => reject(new Error(`Timeout: ${label} (${ms}ms)`)), ms)
-    ),
-  ])
-}
-
-// Helper: fetch user data from users table (never throws, has timeout)
+// Helper: fetch user data with 5s timeout (never throws)
 async function fetchUserData(userId) {
   try {
-    const { data, error } = await withTimeout(
-      supabase.from('users').select('*').eq('id', userId).single(),
-      5000,
-      'fetchUserData'
-    )
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), 5000)
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', userId)
+      .single()
+      .abortSignal(controller.signal)
+    clearTimeout(timer)
     return error ? null : data
   } catch {
     return null
@@ -40,7 +34,6 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
-  // Apply session + user data to state
   function applySession(session, ud) {
     if (session?.user) {
       setUser(session.user)
@@ -54,17 +47,10 @@ export function AuthProvider({ children }) {
         setPermissions(userService.getRolePermissions(ud.role))
       }
     } else {
-      setUser(null)
-      setUserData(null)
-      setIsAuthenticated(false)
-      setIsEmailVerified(false)
-      setRole(null)
-      setPermissions([])
-      setOrganizationId(null)
+      clearAuth()
     }
   }
 
-  // Clear all auth state
   function clearAuth() {
     setUser(null)
     setUserData(null)
@@ -75,45 +61,33 @@ export function AuthProvider({ children }) {
     setOrganizationId(null)
   }
 
-  // Initialize auth on mount
+  // Single listener approach — uses INITIAL_SESSION event (Supabase v2.39+)
   useEffect(() => {
-    let cancelled = false
-
-    async function init() {
-      try {
-        const { data: { session } } = await withTimeout(
-          supabase.auth.getSession(),
-          3000,
-          'getSession'
-        )
-        if (cancelled) return
-        if (session?.user) {
-          const ud = await fetchUserData(session.user.id)
-          if (!cancelled) applySession(session, ud)
-        }
-      } catch (err) {
-        console.warn('[Auth] Init:', err.message)
-      } finally {
-        if (!cancelled) setLoading(false)
-      }
-    }
-
-    init()
-
-    // Listen for future auth changes (login, logout, token refresh)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
+      async (event, session) => {
+        console.log('[Auth] Event:', event, session ? 'has session' : 'no session')
+
         if (session?.user) {
           const ud = await fetchUserData(session.user.id)
           applySession(session, ud)
         } else {
           clearAuth()
         }
+
+        // Stop showing loading spinner after initial check
+        if (event === 'INITIAL_SESSION') {
+          setLoading(false)
+        }
       }
     )
 
+    // Safety timeout in case INITIAL_SESSION never fires
+    const timeout = setTimeout(() => {
+      setLoading(false)
+    }, 3000)
+
     return () => {
-      cancelled = true
+      clearTimeout(timeout)
       subscription.unsubscribe()
     }
   }, [])
@@ -121,52 +95,51 @@ export function AuthProvider({ children }) {
   // Sign in with 10s timeout
   const signIn = async (email, password) => {
     setError(null)
-    await withTimeout(
-      authService.signIn(email, password),
-      10000,
-      'signIn'
-    )
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), 10000)
+    try {
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      })
+      clearTimeout(timer)
+      if (signInError) throw new Error(signInError.message)
+      return data
+    } catch (err) {
+      clearTimeout(timer)
+      if (err.name === 'AbortError') {
+        throw new Error('Verbinding met server duurt te lang. Probeer het opnieuw.')
+      }
+      throw err
+    }
   }
 
-  // Sign up
   const signUp = async (email, password, firstName, lastName, orgId, role = 'Viewer') => {
     setError(null)
-    await withTimeout(
-      authService.signUp(email, password, firstName, lastName, orgId, role),
-      15000,
-      'signUp'
-    )
+    await authService.signUp(email, password, firstName, lastName, orgId, role)
   }
 
-  // Log out
   const logout = async () => {
     setError(null)
     try {
-      await withTimeout(authService.logout(), 5000, 'logout')
+      await supabase.auth.signOut()
     } catch {
-      // Force clear even if logout API call fails
+      // Force clear even if API fails
     }
     clearAuth()
   }
 
-  // Update profile
   const updateProfile = async (updates) => {
     setError(null)
     await authService.updateProfile(user.id, updates)
     setUserData(prev => ({ ...prev, ...updates }))
   }
 
-  // Reset password
   const resetPassword = async (email) => {
     setError(null)
-    await withTimeout(
-      authService.resetPassword(email),
-      10000,
-      'resetPassword'
-    )
+    await authService.resetPassword(email)
   }
 
-  // Check permission
   const hasPermission = (action) => permissions.includes(action)
 
   const value = {
