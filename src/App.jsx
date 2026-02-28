@@ -10,6 +10,7 @@ import StaffPage from './components/StaffPage.jsx';
 import AdminDashboard from './components/AdminDashboard.jsx';
 import ProfilePage from './components/ProfilePage.jsx';
 import LogbookPage from './components/LogbookPage.jsx';
+import TestEmailPage from './components/TestEmailPage.jsx';
 import SyncStatusBar from './components/SyncStatusBar.jsx';
 
 function AppContent() {
@@ -56,6 +57,7 @@ function AppContent() {
           {currentPage === 'groups' && <GroupsPage />}
           {currentPage === 'staff' && <StaffPage />}
           {currentPage === 'logbook' && <LogbookPage />}
+          {currentPage === 'test-email' && <TestEmailPage />}
           {currentPage === 'admin' && <AdminDashboard onBack={() => setCurrentPage('dashboard')} />}
           {currentPage === 'profile' && <ProfilePage />}
         </div>

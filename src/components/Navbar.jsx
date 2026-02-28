@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   LayoutDashboard, BookOpen, Users, Calendar, GraduationCap,
-  Settings, LogOut, User, ChevronDown, ChevronRight, Shield, ClipboardList,
+  Settings, LogOut, User, ChevronDown, ChevronRight, Shield, ClipboardList, Mail,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
@@ -14,6 +14,7 @@ const mainNavItems = [
 
 const settingsItems = [
   { id: 'groups', label: 'Groepen', icon: BookOpen },
+  { id: 'test-email', label: 'Test Email', icon: Mail },
 ];
 
 export default function Navbar({ currentPage, setCurrentPage }) {
@@ -21,7 +22,7 @@ export default function Navbar({ currentPage, setCurrentPage }) {
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   // Keep settings open if a settings sub-item is active
-  const settingsPageIds = ['groups', 'admin'];
+  const settingsPageIds = ['groups', 'admin', 'test-email'];
   const isSettingsActive = settingsPageIds.includes(currentPage);
 
   const handleLogout = async () => {
