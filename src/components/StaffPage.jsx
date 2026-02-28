@@ -45,14 +45,19 @@ function capitalize(str) {
 function scheduleLabel(daySchedule, groups, units) {
   if (!daySchedule || daySchedule.type === 'none') return { text: '—', color: 'text-gray-400' };
   if (daySchedule.type === 'vrij')      return { text: 'Vrij',     color: 'text-gray-400' };
-  if (daySchedule.type === 'ambulant')  return { text: 'Ambulant', color: 'text-purple-600' };
+
+  const timeStr = (daySchedule.startTime && daySchedule.endTime)
+    ? ` (${daySchedule.startTime}–${daySchedule.endTime})`
+    : '';
+
+  if (daySchedule.type === 'ambulant')  return { text: 'Ambulant' + timeStr, color: 'text-purple-600' };
   if (daySchedule.type === 'group') {
     const g = groups.find(x => x.id === daySchedule.groupId);
-    return { text: g ? g.name : '?', color: 'text-green-700' };
+    return { text: (g ? g.name : '?') + timeStr, color: 'text-green-700' };
   }
   if (daySchedule.type === 'unit') {
     const u = units.find(x => x.id === daySchedule.unitId);
-    return { text: u ? `Unit: ${u.name}` : 'Unit', color: 'text-blue-700' };
+    return { text: (u ? `Unit: ${u.name}` : 'Unit') + timeStr, color: 'text-blue-700' };
   }
   return { text: '—', color: 'text-gray-400' };
 }
@@ -531,10 +536,11 @@ function StaffModal({ data, mode, groups, units, onSave, onClose }) {
             <h3 className="text-sm font-semibold text-gray-700 mb-3">Weekrooster</h3>
             <div className="rounded-xl border border-gray-200 overflow-hidden">
               {/* Header row */}
-              <div className="grid grid-cols-[100px_1fr_1fr] bg-gray-50 border-b border-gray-200 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+              <div className="grid grid-cols-[100px_1fr_1fr_160px] bg-gray-50 border-b border-gray-200 text-xs font-semibold text-gray-500 uppercase tracking-wide">
                 <div className="px-3 py-2">Dag</div>
                 <div className="px-3 py-2">Type</div>
                 <div className="px-3 py-2">Koppeling</div>
+                <div className="px-3 py-2">Werktijden</div>
               </div>
               {/* Day rows */}
               {DAYS.map((day, i) => {
@@ -542,7 +548,7 @@ function StaffModal({ data, mode, groups, units, onSave, onClose }) {
                 return (
                   <div
                     key={day}
-                    className={`grid grid-cols-[100px_1fr_1fr] items-center border-b last:border-b-0 border-gray-100 ${
+                    className={`grid grid-cols-[100px_1fr_1fr_160px] items-center border-b last:border-b-0 border-gray-100 ${
                       i % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'
                     }`}
                   >
@@ -588,6 +594,27 @@ function StaffModal({ data, mode, groups, units, onSave, onClose }) {
                         </select>
                       )}
                       {(ds.type === 'none' || ds.type === 'ambulant' || ds.type === 'vrij') && (
+                        <span className="text-xs text-gray-400 px-2">—</span>
+                      )}
+                    </div>
+                    <div className="px-3 py-2">
+                      {(ds.type === 'group' || ds.type === 'unit' || ds.type === 'ambulant') ? (
+                        <div className="flex items-center gap-1">
+                          <input
+                            type="time"
+                            value={ds.startTime || ''}
+                            onChange={e => setDaySchedule(day, 'startTime', e.target.value || undefined)}
+                            className="w-[70px] border border-gray-300 rounded px-1.5 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          />
+                          <span className="text-gray-400 text-xs">–</span>
+                          <input
+                            type="time"
+                            value={ds.endTime || ''}
+                            onChange={e => setDaySchedule(day, 'endTime', e.target.value || undefined)}
+                            className="w-[70px] border border-gray-300 rounded px-1.5 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          />
+                        </div>
+                      ) : (
                         <span className="text-xs text-gray-400 px-2">—</span>
                       )}
                     </div>

@@ -44,6 +44,12 @@ function timeRangesOverlap(start1, end1, start2, end2) {
   return start1 < end2 && start2 < end1;
 }
 
+/** Check if staff working hours fully cover a required time range. NULL = full day. */
+function workingHoursCover(daySchedule, requiredStart, requiredEnd) {
+  if (!daySchedule?.startTime || !daySchedule?.endTime) return true;
+  return daySchedule.startTime <= requiredStart && daySchedule.endTime >= requiredEnd;
+}
+
 export default function Dashboard() {
   const { state, dispatch } = useApp();
   const { groups, units, staff, absences, timeAbsences } = state;
@@ -857,6 +863,12 @@ function GroupPopup({ group, date, staffList, allStaff, unitStaff, unit, unmanne
         );
         if (blockedByOther) return false;
       }
+
+      // Check working hours cover the required time range
+      const requiredStart = replacementTimeSlot?.startTime || group.startTime;
+      const requiredEnd = replacementTimeSlot?.endTime || group.endTime;
+      if (!workingHoursCover(daySchedule, requiredStart, requiredEnd)) return false;
+
       return true;
     }
 
@@ -1115,6 +1127,11 @@ function GroupPopup({ group, date, staffList, allStaff, unitStaff, unit, unmanne
                               {isUnitStaff && (
                                 <span className="ml-1 text-xs px-1.5 py-0.5 rounded bg-blue-200 text-blue-800 font-semibold">
                                   Ondersteuning
+                                </span>
+                              )}
+                              {daySchedule?.startTime && daySchedule?.endTime && (
+                                <span className="ml-1 text-xs text-gray-400">
+                                  ({daySchedule.startTime}–{daySchedule.endTime})
                                 </span>
                               )}
                             </div>

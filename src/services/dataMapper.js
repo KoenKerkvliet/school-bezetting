@@ -14,7 +14,8 @@
  * staff:    id, name, role, organization_id, created_at, updated_at
  *           (schedule is in separate staff_schedule table)
  *
- * staff_schedule: id, staff_id, day, schedule_type, group_id, unit_id, created_at
+ * staff_schedule: id, staff_id, day, schedule_type, group_id, unit_id,
+ *                 start_time, end_time, created_at
  *
  * absences: id, staff_id, start_date, end_date, reason, organization_id, created_at
  *
@@ -115,6 +116,8 @@ export function dbStaffToApp(dbStaff, dbScheduleRows = []) {
         type: r.schedule_type || 'none',
         ...(r.group_id ? { groupId: r.group_id } : {}),
         ...(r.unit_id ? { unitId: r.unit_id } : {}),
+        ...(r.start_time ? { startTime: r.start_time } : {}),
+        ...(r.end_time ? { endTime: r.end_time } : {}),
       }
     })
 
@@ -152,6 +155,8 @@ export function appStaffToScheduleRows(staff) {
       schedule_type: staff.schedule[d].type,
       group_id: staff.schedule[d].groupId || null,
       unit_id: staff.schedule[d].unitId || null,
+      start_time: staff.schedule[d].startTime || null,
+      end_time: staff.schedule[d].endTime || null,
     }))
 }
 
