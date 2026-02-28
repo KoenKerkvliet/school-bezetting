@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   format, startOfWeek, addDays, addWeeks, subWeeks,
   isSameDay, isToday, getISOWeek,
@@ -43,9 +43,26 @@ export default function Dashboard() {
   const { state, dispatch } = useApp();
   const { groups, units, staff, absences, timeAbsences } = state;
 
-  const [currentWeek, setCurrentWeek] = useState(new Date());
+  // Initialize currentWeek from localStorage or use today
+  const [currentWeek, setCurrentWeek] = useState(() => {
+    try {
+      const saved = localStorage.getItem('dashboardWeek');
+      return saved ? new Date(saved) : new Date();
+    } catch {
+      return new Date();
+    }
+  });
   const [selectedDay, setSelectedDay] = useState(null);
   const [selectedGroup, setSelectedGroup] = useState(null); // { group, date }
+
+  // Save currentWeek to localStorage whenever it changes
+  useEffect(() => {
+    try {
+      localStorage.setItem('dashboardWeek', currentWeek.toISOString());
+    } catch {
+      // Silently fail if localStorage is unavailable
+    }
+  }, [currentWeek]);
 
   const weekDates = getWeekDates(currentWeek);
   const weekNum = getISOWeek(weekDates[0]);
