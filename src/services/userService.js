@@ -14,27 +14,34 @@ import { supabase } from './supabaseClient'
  * @returns {Promise<object>} user object
  */
 export async function createUser(email, firstName, lastName, role, organizationId, schoolName = 'School Bezetting') {
-  try {
-    // Call Edge Function to create user server-side (safe for admin API)
-    const { data, error } = await supabase.functions.invoke('create-user', {
-      body: {
-        email,
-        firstName,
-        lastName,
-        role,
-        organizationId,
-        schoolName,
-      },
-    })
+  // Use direct fetch to get detailed error messages from Edge Function
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+  const { data: { session } } = await supabase.auth.getSession()
 
-    if (error) {
-      throw new Error(error.message || 'Failed to create user')
-    }
+  const response = await fetch(`${supabaseUrl}/functions/v1/create-user`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${session?.access_token}`,
+      'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+    },
+    body: JSON.stringify({
+      email,
+      firstName,
+      lastName,
+      role,
+      organizationId,
+      schoolName,
+    }),
+  })
 
-    return data.user
-  } catch (error) {
-    throw new Error(`Failed to create user: ${error.message}`)
+  const result = await response.json()
+
+  if (!response.ok) {
+    throw new Error(`Failed to create user: ${result.error || response.statusText}`)
   }
+
+  return result.user || result
 }
 
 /**
