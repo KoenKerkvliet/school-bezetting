@@ -769,6 +769,24 @@ function GroupPopup({ group, date, staffList, allStaff, unitStaff, unit, unmanne
     setShowReplacementMode(false);
   }
 
+  function removeStaffFromGroup(staffId) {
+    const staff = allStaff.find(s => s.id === staffId);
+    if (!staff) return;
+
+    dispatch({
+      type: 'UPDATE_STAFF',
+      payload: {
+        ...staff,
+        schedule: {
+          ...staff.schedule,
+          [dayKey]: {
+            type: 'none',
+          },
+        },
+      },
+    });
+  }
+
   const statusColor = unmanned
     ? { bg: 'bg-red-50', border: 'border-red-300', text: 'text-red-700' }
     : (hasAbsent || hasTimeAbsent)
@@ -837,22 +855,33 @@ function GroupPopup({ group, date, staffList, allStaff, unitStaff, unit, unmanne
                   {staffList.map(s => (
                     <div key={s.id}>
                       <div
-                        onClick={e => { e.stopPropagation(); setStaffAction(s); }}
-                        className={`flex items-center gap-2 rounded-lg px-3 py-2 cursor-pointer transition-colors text-sm ${
+                        className={`flex items-center gap-2 rounded-lg px-3 py-2 transition-colors text-sm ${
                           s.absent
-                            ? 'bg-amber-100 text-amber-800 hover:bg-amber-200'
-                            : 'bg-gray-50 text-gray-800 hover:bg-gray-100'
+                            ? 'bg-amber-100 text-amber-800'
+                            : 'bg-gray-50 text-gray-800'
                         }`}
                       >
-                        {s.absent
-                          ? <UserX className="w-3.5 h-3.5 flex-shrink-0" />
-                          : <CheckCircle className="w-3.5 h-3.5 text-green-500 flex-shrink-0" />
-                        }
-                        <span className={s.absent ? 'line-through' : ''}>{s.name}</span>
-                        <span className="text-xs text-gray-400 ml-0.5">{s.role}</span>
-                        {s.absent && (
-                          <span className="ml-auto text-xs text-amber-600">({s.reason || 'afwezig'})</span>
-                        )}
+                        <button
+                          onClick={e => { e.stopPropagation(); setStaffAction(s); }}
+                          className="flex-1 flex items-center gap-2 cursor-pointer hover:opacity-80"
+                        >
+                          {s.absent
+                            ? <UserX className="w-3.5 h-3.5 flex-shrink-0" />
+                            : <CheckCircle className="w-3.5 h-3.5 text-green-500 flex-shrink-0" />
+                          }
+                          <span className={s.absent ? 'line-through' : ''}>{s.name}</span>
+                          <span className="text-xs text-gray-400 ml-0.5">{s.role}</span>
+                          {s.absent && (
+                            <span className="ml-auto text-xs text-amber-600">({s.reason || 'afwezig'})</span>
+                          )}
+                        </button>
+                        <button
+                          onClick={e => { e.stopPropagation(); removeStaffFromGroup(s.id); }}
+                          className="flex-shrink-0 p-1 rounded hover:bg-white/30 text-current transition-colors"
+                          title="Verwijderen uit groep"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
                       </div>
                       {!s.absent && s.timeAbsences?.length > 0 && (
                         <div className="ml-4 mt-0.5 space-y-0.5">
