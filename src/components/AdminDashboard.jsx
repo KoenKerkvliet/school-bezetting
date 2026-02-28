@@ -49,34 +49,14 @@ export default function AdminDashboard({ onBack }) {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div>
       {/* Header */}
-      <div className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Admin Panel</h1>
-            {organization && <p className="text-gray-600 mt-1">{organization.name}</p>}
-          </div>
-          <div className="flex gap-3">
-            {onBack && (
-              <button
-                onClick={onBack}
-                className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg font-medium transition-colors"
-              >
-                ← Terug
-              </button>
-            )}
-            <button
-              onClick={handleLogout}
-              className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors"
-            >
-              Uitloggen
-            </button>
-          </div>
-        </div>
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold text-gray-900">Admin Panel</h1>
+        {organization && <p className="text-gray-600 mt-1">{organization.name}</p>}
       </div>
 
-      <div className="max-w-7xl mx-auto px-6 py-8">
+      <div className="max-w-7xl">
         {/* Tabs */}
         <div className="flex gap-4 mb-8 border-b border-gray-200">
           <button

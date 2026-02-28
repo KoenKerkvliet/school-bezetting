@@ -1,16 +1,27 @@
-import React from 'react';
-import { LayoutDashboard, BookOpen, Users, Calendar, GraduationCap, Settings, LogOut } from 'lucide-react';
+import React, { useState } from 'react';
+import {
+  LayoutDashboard, BookOpen, Users, Calendar, GraduationCap,
+  Settings, LogOut, User, ChevronDown, ChevronRight, Shield,
+} from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
-const navItems = [
+const mainNavItems = [
   { id: 'dashboard', label: 'Dashboard',    icon: LayoutDashboard },
   { id: 'absence',   label: 'Afwezigheid',  icon: Calendar },
   { id: 'staff',     label: "Collega's",    icon: Users },
-  { id: 'groups',    label: 'Groepen',      icon: BookOpen },
+];
+
+const settingsItems = [
+  { id: 'groups', label: 'Groepen', icon: BookOpen },
 ];
 
 export default function Navbar({ currentPage, setCurrentPage }) {
   const { user, role, logout } = useAuth();
+  const [settingsOpen, setSettingsOpen] = useState(false);
+
+  // Keep settings open if a settings sub-item is active
+  const settingsPageIds = ['groups', 'admin'];
+  const isSettingsActive = settingsPageIds.includes(currentPage);
 
   const handleLogout = async () => {
     try {
@@ -20,66 +31,118 @@ export default function Navbar({ currentPage, setCurrentPage }) {
     }
   };
 
+  const handleNavClick = (id) => {
+    setCurrentPage(id);
+  };
+
   return (
-    <nav className="bg-blue-700 text-white shadow-lg">
-      <div className="container mx-auto px-4" style={{ maxWidth: '1600px' }}>
-        <div className="flex items-center justify-between h-14">
-          <div className="flex items-center gap-6">
-            <div className="flex items-center gap-2 font-bold text-lg">
-              <GraduationCap className="w-6 h-6" />
-              <span>School Bezetting</span>
-            </div>
-            <div className="flex gap-1">
-              {navItems.map(({ id, label, icon: Icon }) => (
-                <button
-                  key={id}
-                  onClick={() => setCurrentPage(id)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                    currentPage === id
-                      ? 'bg-white/20 text-white'
-                      : 'text-blue-100 hover:bg-white/10'
-                  }`}
-                >
-                  <Icon className="w-4 h-4" />
-                  {label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Right side: Admin link + User menu */}
-          <div className="flex items-center gap-4">
-            {role === 'Admin' && (
-              <button
-                onClick={() => setCurrentPage('admin')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                  currentPage === 'admin'
-                    ? 'bg-white/20 text-white'
-                    : 'text-blue-100 hover:bg-white/10'
-                }`}
-              >
-                <Settings className="w-4 h-4" />
-                Admin
-              </button>
-            )}
-
-            {/* User info + Logout */}
-            <div className="flex items-center gap-3 pl-4 border-l border-blue-600">
-              <div className="text-right text-sm">
-                <div className="font-medium">{user?.email}</div>
-                <div className="text-blue-100 text-xs">{role}</div>
-              </div>
-              <button
-                onClick={handleLogout}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-blue-100 hover:bg-red-600 transition-colors"
-                title="Uitloggen"
-              >
-                <LogOut className="w-4 h-4" />
-              </button>
-            </div>
+    <aside className="w-56 bg-slate-800 text-white flex flex-col h-screen sticky top-0 flex-shrink-0">
+      {/* Logo / App name */}
+      <div className="px-4 py-5 border-b border-slate-700">
+        <div className="flex items-center gap-2.5">
+          <GraduationCap className="w-7 h-7 text-blue-400" />
+          <div>
+            <div className="font-bold text-sm leading-tight">School</div>
+            <div className="font-bold text-sm leading-tight text-blue-400">Bezetting</div>
           </div>
         </div>
       </div>
-    </nav>
+
+      {/* Main navigation */}
+      <nav className="flex-1 px-3 py-4 space-y-1">
+        {mainNavItems.map(({ id, label, icon: Icon }) => (
+          <button
+            key={id}
+            onClick={() => handleNavClick(id)}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+              currentPage === id
+                ? 'bg-blue-600 text-white'
+                : 'text-slate-300 hover:bg-slate-700 hover:text-white'
+            }`}
+          >
+            <Icon className="w-5 h-5 flex-shrink-0" />
+            {label}
+          </button>
+        ))}
+      </nav>
+
+      {/* Bottom section */}
+      <div className="px-3 pb-4 space-y-1 border-t border-slate-700 pt-3">
+        {/* Settings toggle */}
+        <button
+          onClick={() => setSettingsOpen(!settingsOpen)}
+          className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+            isSettingsActive && !settingsOpen
+              ? 'bg-slate-700 text-white'
+              : 'text-slate-300 hover:bg-slate-700 hover:text-white'
+          }`}
+        >
+          <Settings className="w-5 h-5 flex-shrink-0" />
+          <span className="flex-1 text-left">Instellingen</span>
+          {(settingsOpen || isSettingsActive) ? (
+            <ChevronDown className="w-4 h-4 flex-shrink-0" />
+          ) : (
+            <ChevronRight className="w-4 h-4 flex-shrink-0" />
+          )}
+        </button>
+
+        {/* Settings sub-items */}
+        {(settingsOpen || isSettingsActive) && (
+          <div className="ml-4 space-y-0.5">
+            {settingsItems.map(({ id, label, icon: Icon }) => (
+              <button
+                key={id}
+                onClick={() => handleNavClick(id)}
+                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
+                  currentPage === id
+                    ? 'bg-blue-600 text-white font-medium'
+                    : 'text-slate-400 hover:bg-slate-700 hover:text-white'
+                }`}
+              >
+                <Icon className="w-4 h-4 flex-shrink-0" />
+                {label}
+              </button>
+            ))}
+
+            {/* Admin — only for Admin role */}
+            {role === 'Admin' && (
+              <button
+                onClick={() => handleNavClick('admin')}
+                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
+                  currentPage === 'admin'
+                    ? 'bg-blue-600 text-white font-medium'
+                    : 'text-slate-400 hover:bg-slate-700 hover:text-white'
+                }`}
+              >
+                <Shield className="w-4 h-4 flex-shrink-0" />
+                Admin
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Profile */}
+        <button
+          onClick={() => handleNavClick('profile')}
+          className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+            currentPage === 'profile'
+              ? 'bg-blue-600 text-white'
+              : 'text-slate-300 hover:bg-slate-700 hover:text-white'
+          }`}
+        >
+          <User className="w-5 h-5 flex-shrink-0" />
+          Profiel
+        </button>
+
+        {/* Logout */}
+        <button
+          onClick={handleLogout}
+          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:bg-red-600/20 hover:text-red-300 transition-colors"
+        >
+          <LogOut className="w-5 h-5 flex-shrink-0" />
+          Uitloggen
+        </button>
+      </div>
+    </aside>
   );
 }

@@ -8,6 +8,7 @@ import AbsencePage from './components/AbsencePage.jsx';
 import GroupsPage from './components/GroupsPage.jsx';
 import StaffPage from './components/StaffPage.jsx';
 import AdminDashboard from './components/AdminDashboard.jsx';
+import ProfilePage from './components/ProfilePage.jsx';
 import SyncStatusBar from './components/SyncStatusBar.jsx';
 
 function AppContent() {
@@ -36,7 +37,7 @@ function AppContent() {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <p className="text-red-600 mb-2">⚠️ Fout bij laden data</p>
+          <p className="text-red-600 mb-2">Fout bij laden data</p>
           <p className="text-sm text-gray-600">{appError}</p>
           <p className="text-sm text-gray-500 mt-2">Lokale backup wordt gebruikt</p>
         </div>
@@ -44,19 +45,18 @@ function AppContent() {
     );
   }
 
-  // Admin panel for admins
-  if (currentPage === 'admin') {
-    return <AdminDashboard onBack={() => setCurrentPage('dashboard')} />;
-  }
-
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
+    <div className="min-h-screen bg-gray-50 flex">
       <Navbar currentPage={currentPage} setCurrentPage={setCurrentPage} />
-      <main className="flex-1 container mx-auto px-4 py-6" style={{ maxWidth: '1600px' }}>
-        {currentPage === 'dashboard' && <Dashboard initialDate={navigateDate} onInitialDateUsed={() => setNavigateDate(null)} />}
-        {currentPage === 'absence' && <AbsencePage onBack={() => setCurrentPage('dashboard')} onNavigateToDay={handleNavigateToDay} />}
-        {currentPage === 'groups' && <GroupsPage />}
-        {currentPage === 'staff' && <StaffPage />}
+      <main className="flex-1 min-w-0 overflow-auto">
+        <div className="px-6 py-6">
+          {currentPage === 'dashboard' && <Dashboard initialDate={navigateDate} onInitialDateUsed={() => setNavigateDate(null)} />}
+          {currentPage === 'absence' && <AbsencePage onBack={() => setCurrentPage('dashboard')} onNavigateToDay={handleNavigateToDay} />}
+          {currentPage === 'groups' && <GroupsPage />}
+          {currentPage === 'staff' && <StaffPage />}
+          {currentPage === 'admin' && <AdminDashboard onBack={() => setCurrentPage('dashboard')} />}
+          {currentPage === 'profile' && <ProfilePage />}
+        </div>
       </main>
     </div>
   );
