@@ -439,6 +439,20 @@ function StaffModal({ data, mode, groups, units, onSave, onClose }) {
   function handleSubmit(e) {
     e.preventDefault();
     if (!form.name.trim()) return;
+
+    // Validate schedule: if type is 'group'/'unit', must have selection
+    for (const day of DAYS) {
+      const ds = form.schedule[day];
+      if (ds.type === 'group' && !ds.groupId) {
+        alert(`${DAY_LABELS_NL[DAYS.indexOf(day)]}: selecteer een groep`);
+        return;
+      }
+      if (ds.type === 'unit' && !ds.unitId) {
+        alert(`${DAY_LABELS_NL[DAYS.indexOf(day)]}: selecteer een unit`);
+        return;
+      }
+    }
+
     onSave(form);
   }
 

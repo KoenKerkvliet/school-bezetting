@@ -116,7 +116,14 @@ export function appStaffToDb(app, orgId) {
 export function appStaffToScheduleRows(staff) {
   const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday']
   return days
-    .filter(d => staff.schedule?.[d] && staff.schedule[d].type !== 'none')
+    .filter(d => {
+      const ds = staff.schedule?.[d]
+      if (!ds || ds.type === 'none') return false
+      // Only include group/unit if actually selected
+      if (ds.type === 'group' && !ds.groupId) return false
+      if (ds.type === 'unit' && !ds.unitId) return false
+      return true
+    })
     .map(d => ({
       staff_id: staff.id,
       day: d,
