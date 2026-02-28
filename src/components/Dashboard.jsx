@@ -255,7 +255,7 @@ export default function Dashboard() {
 
                 {/* Group cards */}
                 <div className="p-2 space-y-1">
-                  {groups.map(group => {
+                  {[...groups].sort((a, b) => a.name.localeCompare(b.name, 'nl')).map(group => {
                     const isActive = isGroupActiveOnDay(group, dayKey);
 
                     // Inactive day: show blank/transparent card

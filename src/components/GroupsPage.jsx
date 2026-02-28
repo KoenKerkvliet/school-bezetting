@@ -163,7 +163,7 @@ export default function GroupsPage() {
             />
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {groups.map(group => {
+              {[...groups].sort((a, b) => a.name.localeCompare(b.name, 'nl')).map(group => {
                 const unit = units.find(u => u.id === group.unitId);
                 return (
                   <div key={group.id} className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden hover:shadow-md transition-shadow">
