@@ -6,7 +6,7 @@ import {
 import { nl } from 'date-fns/locale';
 import {
   ChevronLeft, ChevronRight, AlertTriangle, CheckCircle,
-  UserX, Users, Clock, X, Plus, Eye,
+  UserX, Users, Clock, X, Plus, Eye, UserPlus,
 } from 'lucide-react';
 import { useApp, DAYS, DAY_LABELS_NL, generateId } from '../context/AppContext.jsx';
 
@@ -405,6 +405,7 @@ export default function Dashboard() {
           group={selectedGroup.group}
           date={selectedGroup.date}
           staffList={getGroupStaff(selectedGroup.group.id, selectedGroup.date)}
+          allStaff={staff}
           unitStaff={selectedGroup.group.unitId ? getUnitStaff(selectedGroup.group.unitId, selectedGroup.date) : []}
           unit={units.find(u => u.id === selectedGroup.group.unitId) || null}
           unmanned={isGroupUnmanned(selectedGroup.group.id, selectedGroup.date)}
@@ -720,12 +721,40 @@ function GroupDetailCard({ group, staffList, unmanned, onStaffClick }) {
 
 // ── Single group popup ─────────────────────────────────────────────────────
 
-function GroupPopup({ group, date, staffList, unitStaff, unit, unmanned, absences, timeAbsences, dispatch, onClose }) {
+function GroupPopup({ group, date, staffList, allStaff, unitStaff, unit, unmanned, absences, timeAbsences, dispatch, onClose }) {
   const [staffAction, setStaffAction] = useState(null);
+  const [showReplacementMode, setShowReplacementMode] = useState(false);
   const dateLabel = capitalize(format(date, 'EEEE d MMMM yyyy', { locale: nl }));
   const today = isToday(date);
   const hasAbsent = staffList.some(s => s.absent);
   const hasTimeAbsent = staffList.some(s => !s.absent && s.timeAbsences?.length > 0);
+
+  // Get available staff (not absent, not in current group)
+  const dayKey = DAYS[date.getDay() - 1] || 'monday';
+  const availableStaff = (allStaff || []).filter(s => {
+    // Not already in this group
+    if (staffList.some(st => st.id === s.id)) return false;
+    // Not absent
+    if (absences.some(a => a.staff_id === s.id && isSameDay(new Date(a.date), date))) return false;
+    return true;
+  });
+
+  function addReplacement(staffId) {
+    dispatch({
+      type: 'UPDATE_STAFF',
+      payload: {
+        ...allStaff.find(s => s.id === staffId),
+        schedule: {
+          ...allStaff.find(s => s.id === staffId)?.schedule,
+          [dayKey]: {
+            type: 'group',
+            groupId: group.id,
+          },
+        },
+      },
+    });
+    setShowReplacementMode(false);
+  }
 
   const statusColor = unmanned
     ? { bg: 'bg-red-50', border: 'border-red-300', text: 'text-red-700' }
@@ -746,16 +775,25 @@ function GroupPopup({ group, date, staffList, unitStaff, unit, unmanned, absence
           className="px-4 py-3 flex items-start justify-between border-b"
           style={{ backgroundColor: group.color + '20', borderBottomColor: group.color + '60' }}
         >
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2.5 flex-1">
             <span className="w-3.5 h-3.5 rounded-full flex-shrink-0" style={{ backgroundColor: group.color }} />
             <div>
               <div className="font-bold text-gray-900">{group.name}</div>
               <div className="text-xs text-gray-500 mt-0.5">{dateLabel}</div>
             </div>
           </div>
-          <button onClick={onClose} className="p-1 hover:bg-gray-200 rounded-lg text-gray-400 transition-colors mt-0.5">
-            <X className="w-4 h-4" />
-          </button>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setShowReplacementMode(!showReplacementMode)}
+              className="p-1 hover:bg-gray-200 rounded-lg text-gray-600 transition-colors"
+              title="Vervanging regelen"
+            >
+              <UserPlus className="w-4 h-4" />
+            </button>
+            <button onClick={onClose} className="p-1 hover:bg-gray-200 rounded-lg text-gray-400 transition-colors">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
         </div>
 
         <div className="overflow-y-auto max-h-[calc(100vh-12rem)]">
@@ -845,6 +883,34 @@ function GroupPopup({ group, date, staffList, unitStaff, unit, unmanned, absence
                     </div>
                   ))}
                 </div>
+              </div>
+            )}
+
+            {/* Replacement mode */}
+            {showReplacementMode && (
+              <div>
+                <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+                  Beschikbare vervangers
+                </h3>
+                {availableStaff.length === 0 ? (
+                  <div className="text-xs text-gray-500 px-2 py-1.5 rounded bg-gray-50 border border-gray-200">
+                    Geen beschikbare collega's
+                  </div>
+                ) : (
+                  <div className="space-y-1">
+                    {availableStaff.map(s => (
+                      <button
+                        key={s.id}
+                        onClick={() => addReplacement(s.id)}
+                        className="w-full text-left flex items-center gap-2 rounded-lg px-3 py-2 bg-green-50 text-green-700 hover:bg-green-100 transition-colors text-sm font-medium"
+                      >
+                        <UserPlus className="w-3.5 h-3.5 flex-shrink-0" />
+                        <span>{s.name}</span>
+                        <span className="text-xs text-green-600 ml-auto">{s.role}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </div>
