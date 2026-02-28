@@ -197,12 +197,11 @@ export default function Dashboard() {
   // ── PDF generation ──────────────────────────────────────────────────────
 
   function generateWeekPDF() {
-    const DAY_NAMES_NL = ['Maandag', 'Dinsdag', 'Woensdag', 'Donderdag', 'Vrijdag'];
-
     // Build data: per day, only groups with changes
-    const daysData = weekDates.map((date, i) => {
+    const daysData = weekDates.map((date) => {
       const dayKey = getDayKey(date);
-      const dayLabel = capitalize(format(date, 'EEEE d MMMM', { locale: nl }));
+      const dayShort = capitalize(format(date, 'EEEE', { locale: nl }));
+      const dayDate = format(date, 'd MMM', { locale: nl });
 
       const changedGroups = [...groups]
         .sort((a, b) => a.name.localeCompare(b.name, 'nl'))
@@ -216,87 +215,81 @@ export default function Dashboard() {
           const wholeDayStaffCount = gs.filter(s => !s.absent && !s.replacementStartTime).length;
           const isOverstaffed = wholeDayStaffCount > 1;
           const hasChanges = unmanned || hasAbsentStaff || hasTimeAbsent || hasReplacement || isOverstaffed;
-
           if (!hasChanges) return null;
-
-          // Determine status label
-          let status = '';
-          let statusColor = '#d97706'; // amber
-          if (unmanned) { status = 'Onbemand'; statusColor = '#dc2626'; }
-          else if (isOverstaffed) { status = 'Overbezet'; statusColor = '#ca8a04'; }
-          else if (hasAbsentStaff) { status = 'Afwezigheid'; statusColor = '#d97706'; }
-          else if (hasTimeAbsent) { status = 'Tijdelijk afwezig'; statusColor = '#ea580c'; }
-          else if (hasReplacement) { status = 'Vervanging'; statusColor = '#4f46e5'; }
-
-          return { group, gs, status, statusColor };
+          return { group, gs, unmanned };
         })
         .filter(Boolean);
 
-      return { dayLabel, changedGroups };
+      return { dayShort, dayDate, changedGroups };
     });
 
-    // Build HTML
     const dateRange = `${capitalize(format(weekDates[0], 'd MMMM', { locale: nl }))} t/m ${format(weekDates[4], 'd MMMM yyyy', { locale: nl })}`;
+    const hasAnyChanges = daysData.some(d => d.changedGroups.length > 0);
 
-    let bodyHtml = '';
-    let hasAnyChanges = false;
+    // Build column content per day
+    const columns = daysData.map(({ dayShort, dayDate, changedGroups }) => {
+      if (changedGroups.length === 0) {
+        return { dayShort, dayDate, content: `<div style="color:#94a3b8;font-size:9px;font-style:italic;">Geen wisselingen</div>` };
+      }
 
-    daysData.forEach(({ dayLabel, changedGroups }) => {
-      if (changedGroups.length === 0) return;
-      hasAnyChanges = true;
+      let content = '';
+      changedGroups.forEach(({ group, gs, unmanned }) => {
+        // Group header
+        content += `<div style="margin-bottom:6px;">`;
+        content += `<div style="font-weight:700;font-size:10px;color:#1e293b;border-left:3px solid ${group.color};padding-left:5px;margin-bottom:2px;">${group.name}`;
+        if (unmanned) content += ` <span style="color:#dc2626;">⚠</span>`;
+        content += `</div>`;
 
-      bodyHtml += `<div style="margin-bottom:24px;">`;
-      bodyHtml += `<h2 style="font-size:15px;font-weight:700;color:#1e293b;text-transform:uppercase;letter-spacing:0.5px;margin:0 0 10px 0;padding-bottom:6px;border-bottom:2px solid #e2e8f0;">${dayLabel}</h2>`;
-
-      changedGroups.forEach(({ group, gs, status, statusColor }) => {
-        bodyHtml += `<div style="border:1px solid #e2e8f0;border-left:4px solid ${group.color};border-radius:8px;padding:12px 16px;margin-bottom:8px;background:#fafafa;">`;
-        bodyHtml += `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">`;
-        bodyHtml += `<span style="font-weight:700;font-size:14px;color:#1e293b;">${group.name}</span>`;
-        bodyHtml += `<span style="font-size:11px;font-weight:600;color:${statusColor};background:${statusColor}15;padding:2px 8px;border-radius:10px;">${status}</span>`;
-        bodyHtml += `</div>`;
-
+        // Staff lines — only show changes (absent, replacements, time absences)
         gs.forEach(s => {
-          let staffLine = '';
-          let lineStyle = 'font-size:13px;padding:3px 0;color:#334155;';
-
           if (s.absent) {
-            // Absent staff
-            staffLine = `<span style="text-decoration:line-through;color:#92400e;">${s.name}</span>`;
-            staffLine += ` <span style="font-size:11px;color:#b45309;">— Afwezig (${s.reason || 'onbekend'})</span>`;
+            content += `<div style="font-size:9px;padding:1px 0 1px 8px;color:#92400e;">`;
+            content += `<s>${s.name.split(' ')[0]}</s> <span style="color:#b45309;">(${s.reason || 'afw.'})</span>`;
+            content += `</div>`;
           } else if (s.isReplacement) {
-            // Replacement
-            staffLine = `<span style="color:#4f46e5;font-weight:600;">↪ ${s.name}</span>`;
-            staffLine += ` <span style="font-size:11px;color:#6366f1;">— Vervanger`;
-            if (s.replacementStartTime) {
-              staffLine += ` (${s.replacementStartTime}–${s.replacementEndTime})`;
-            }
-            staffLine += `</span>`;
-          } else {
-            // Regular staff
-            staffLine = `<span>${s.name}</span>`;
-            staffLine += ` <span style="font-size:11px;color:#94a3b8;">${s.role}</span>`;
+            content += `<div style="font-size:9px;padding:1px 0 1px 8px;color:#4f46e5;font-weight:600;">`;
+            content += `↪ ${s.name.split(' ')[0]}`;
+            if (s.replacementStartTime) content += ` <span style="font-weight:400;">${s.replacementStartTime}–${s.replacementEndTime}</span>`;
+            content += `</div>`;
           }
-
-          // Time absences
+          // Time absences on regular staff
           if (!s.absent && s.timeAbsences?.length > 0) {
             s.timeAbsences.forEach(ta => {
-              staffLine += `<div style="margin-left:16px;font-size:11px;color:#ea580c;margin-top:2px;">🕐 ${ta.startTime}–${ta.endTime}`;
-              if (ta.reason) staffLine += ` (${ta.reason})`;
-              staffLine += `</div>`;
+              content += `<div style="font-size:9px;padding:1px 0 1px 8px;color:#ea580c;">`;
+              content += `${s.name.split(' ')[0]} ✗ ${ta.startTime}–${ta.endTime}`;
+              if (ta.reason) content += ` (${ta.reason})`;
+              content += `</div>`;
             });
           }
-
-          bodyHtml += `<div style="${lineStyle}">${staffLine}</div>`;
         });
 
-        bodyHtml += `</div>`;
+        content += `</div>`;
       });
 
-      bodyHtml += `</div>`;
+      return { dayShort, dayDate, content };
     });
 
+    // Build grid HTML
+    let gridHtml = '';
     if (!hasAnyChanges) {
-      bodyHtml = `<div style="text-align:center;padding:40px;color:#94a3b8;font-size:16px;">Geen wisselingen deze week ✓</div>`;
+      gridHtml = `<div style="text-align:center;padding:30px;color:#94a3b8;font-size:14px;">Geen wisselingen deze week ✓</div>`;
+    } else {
+      // Header row
+      gridHtml += `<table style="width:100%;border-collapse:collapse;table-layout:fixed;">`;
+      gridHtml += `<thead><tr>`;
+      columns.forEach(({ dayShort, dayDate }) => {
+        gridHtml += `<th style="width:20%;padding:6px 8px;text-align:left;border-bottom:2px solid #3b82f6;font-size:11px;font-weight:700;color:#1e293b;">`;
+        gridHtml += `${dayShort} <span style="font-weight:400;color:#64748b;">${dayDate}</span>`;
+        gridHtml += `</th>`;
+      });
+      gridHtml += `</tr></thead>`;
+
+      // Content row
+      gridHtml += `<tbody><tr>`;
+      columns.forEach(({ content }) => {
+        gridHtml += `<td style="width:20%;padding:8px;vertical-align:top;border-right:1px solid #e2e8f0;">${content}</td>`;
+      });
+      gridHtml += `</tr></tbody></table>`;
     }
 
     const html = `<!DOCTYPE html>
@@ -307,26 +300,29 @@ export default function Dashboard() {
   <style>
     @media print {
       body { margin: 0; }
-      @page { margin: 15mm; }
+      @page { size: landscape; margin: 10mm; }
     }
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      max-width: 800px;
       margin: 0 auto;
-      padding: 20px;
+      padding: 16px;
       color: #1e293b;
     }
+    table { page-break-inside: avoid; }
+    td:last-child { border-right: none !important; }
   </style>
 </head>
 <body>
-  <div style="margin-bottom:24px;padding-bottom:16px;border-bottom:3px solid #3b82f6;">
-    <h1 style="font-size:22px;font-weight:800;color:#1e293b;margin:0 0 4px 0;">Weekoverzicht — Week ${weekNum}</h1>
-    <p style="font-size:13px;color:#64748b;margin:0;">${dateRange}</p>
-    <p style="font-size:11px;color:#94a3b8;margin:4px 0 0 0;">Alleen groepen met wisselingen</p>
+  <div style="margin-bottom:12px;padding-bottom:8px;border-bottom:2px solid #3b82f6;display:flex;justify-content:space-between;align-items:baseline;">
+    <div>
+      <span style="font-size:16px;font-weight:800;color:#1e293b;">Weekoverzicht — Week ${weekNum}</span>
+      <span style="font-size:11px;color:#64748b;margin-left:8px;">${dateRange}</span>
+    </div>
+    <span style="font-size:9px;color:#94a3b8;">Alleen groepen met wisselingen</span>
   </div>
-  ${bodyHtml}
-  <div style="margin-top:32px;padding-top:12px;border-top:1px solid #e2e8f0;font-size:10px;color:#cbd5e1;text-align:center;">
-    Gegenereerd op ${format(new Date(), 'd MMMM yyyy, HH:mm', { locale: nl })}
+  ${gridHtml}
+  <div style="margin-top:16px;font-size:8px;color:#cbd5e1;text-align:right;">
+    ${format(new Date(), 'd MMM yyyy HH:mm', { locale: nl })}
   </div>
 </body>
 </html>`;
