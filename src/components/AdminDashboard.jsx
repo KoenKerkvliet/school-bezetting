@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext'
 import UserManagementPage from './UserManagementPage'
 import * as organizationService from '../services/organizationService'
 
-export default function AdminDashboard() {
+export default function AdminDashboard({ onBack }) {
   const { role, organizationId, logout } = useAuth()
   const [activeTab, setActiveTab] = useState('overview')
   const [organization, setOrganization] = useState(null)
@@ -56,12 +56,22 @@ export default function AdminDashboard() {
             <h1 className="text-3xl font-bold text-gray-900">Admin Panel</h1>
             {organization && <p className="text-gray-600 mt-1">{organization.name}</p>}
           </div>
-          <button
-            onClick={handleLogout}
-            className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors"
-          >
-            Uitloggen
-          </button>
+          <div className="flex gap-3">
+            {onBack && (
+              <button
+                onClick={onBack}
+                className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg font-medium transition-colors"
+              >
+                ← Terug
+              </button>
+            )}
+            <button
+              onClick={handleLogout}
+              className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors"
+            >
+              Uitloggen
+            </button>
+          </div>
         </div>
       </div>
 

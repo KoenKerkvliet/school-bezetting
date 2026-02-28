@@ -39,7 +39,7 @@ function AppContent() {
 
   // Admin panel for admins
   if (currentPage === 'admin') {
-    return <AdminDashboard />;
+    return <AdminDashboard onBack={() => setCurrentPage('dashboard')} />;
   }
 
   return (
