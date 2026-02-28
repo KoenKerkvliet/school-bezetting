@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react'
 import { supabase } from '../services/supabaseClient'
+import * as authService from '../services/authService'
 import * as userService from '../services/userService'
 
 const AuthContext = createContext(null)
@@ -59,17 +60,35 @@ export function AuthProvider({ children }) {
 
   // Check auth state on mount
   useEffect(() => {
+    let resolved = false
+
+    // Safety: never stay loading longer than 5 seconds
+    const timeout = setTimeout(() => {
+      if (!resolved) {
+        console.warn('[Auth] Timeout - forcing loading=false')
+        resolved = true
+        setLoading(false)
+      }
+    }, 5000)
+
     // Step 1: Check current session immediately
     supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (resolved) return
       if (session?.user) {
         const ud = await fetchUserData(session.user.id)
-        applyAuthState(session, ud, setters)
+        if (!resolved) applyAuthState(session, ud, setters)
       } else {
-        applyAuthState(null, null, setters)
+        if (!resolved) applyAuthState(null, null, setters)
       }
-      setLoading(false)
+      if (!resolved) {
+        resolved = true
+        setLoading(false)
+      }
     }).catch(() => {
-      setLoading(false)
+      if (!resolved) {
+        resolved = true
+        setLoading(false)
+      }
     })
 
     // Step 2: Listen for future auth changes
@@ -81,10 +100,16 @@ export function AuthProvider({ children }) {
         } else {
           applyAuthState(null, null, setters)
         }
+        // Also resolve if getSession hasn't completed yet
+        if (!resolved) {
+          resolved = true
+          setLoading(false)
+        }
       }
     )
 
     return () => {
+      clearTimeout(timeout)
       subscription.unsubscribe()
     }
   }, [])
