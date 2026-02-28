@@ -729,14 +729,27 @@ function GroupPopup({ group, date, staffList, allStaff, unitStaff, unit, unmanne
   const hasAbsent = staffList.some(s => s.absent);
   const hasTimeAbsent = staffList.some(s => !s.absent && s.timeAbsences?.length > 0);
 
-  // Get available staff (not absent, not in current group)
+  // Get available staff for replacement
   const dayKey = DAYS[date.getDay() - 1] || 'monday';
   const availableStaff = (allStaff || []).filter(s => {
     // Not already in this group
     if (staffList.some(st => st.id === s.id)) return false;
+
     // Not absent
     if (absences.some(a => a.staff_id === s.id && isSameDay(new Date(a.date), date))) return false;
-    return true;
+
+    // Get the schedule for this day
+    const daySchedule = s.schedule?.[dayKey];
+    const scheduleType = daySchedule?.type;
+
+    // Only show if they are:
+    // 1. Free (type='none' or no schedule)
+    // 2. OR Assigned to a unit (ambulant/ondersteuning, type='unit')
+    // But NOT if they are assigned to another group (type='group')
+    if (scheduleType === 'group') return false; // Assigned to another group
+    if (scheduleType === 'unit' || scheduleType === undefined || scheduleType === null) return true; // Free or unit
+
+    return false;
   });
 
   function addReplacement(staffId) {
@@ -898,17 +911,34 @@ function GroupPopup({ group, date, staffList, allStaff, unitStaff, unit, unmanne
                   </div>
                 ) : (
                   <div className="space-y-1">
-                    {availableStaff.map(s => (
-                      <button
-                        key={s.id}
-                        onClick={() => addReplacement(s.id)}
-                        className="w-full text-left flex items-center gap-2 rounded-lg px-3 py-2 bg-green-50 text-green-700 hover:bg-green-100 transition-colors text-sm font-medium"
-                      >
-                        <UserPlus className="w-3.5 h-3.5 flex-shrink-0" />
-                        <span>{s.name}</span>
-                        <span className="text-xs text-green-600 ml-auto">{s.role}</span>
-                      </button>
-                    ))}
+                    {availableStaff.map(s => {
+                      const daySchedule = s.schedule?.[dayKey];
+                      const isUnitStaff = daySchedule?.type === 'unit';
+                      return (
+                        <button
+                          key={s.id}
+                          onClick={() => addReplacement(s.id)}
+                          className={`w-full text-left flex items-center gap-2 rounded-lg px-3 py-2 transition-colors text-sm font-medium ${
+                            isUnitStaff
+                              ? 'bg-blue-50 text-blue-700 hover:bg-blue-100'
+                              : 'bg-green-50 text-green-700 hover:bg-green-100'
+                          }`}
+                        >
+                          <UserPlus className="w-3.5 h-3.5 flex-shrink-0" />
+                          <div className="flex-1">
+                            <span>{s.name}</span>
+                            {isUnitStaff && (
+                              <span className="ml-1 text-xs px-1.5 py-0.5 rounded bg-blue-200 text-blue-800 font-semibold">
+                                Ondersteuning
+                              </span>
+                            )}
+                          </div>
+                          <span className={`text-xs ml-auto ${isUnitStaff ? 'text-blue-600' : 'text-green-600'}`}>
+                            {s.role}
+                          </span>
+                        </button>
+                      );
+                    })}
                   </div>
                 )}
               </div>
