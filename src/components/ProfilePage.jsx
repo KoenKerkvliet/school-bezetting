@@ -1,13 +1,22 @@
-import React from 'react';
-import { User, Mail, Shield } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { User, Mail, Shield, Building2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { getOrganization } from '../services/organizationService';
 
 export default function ProfilePage() {
-  const { user, role, userData } = useAuth();
+  const { user, role, userData, organizationId } = useAuth();
+  const [schoolName, setSchoolName] = useState(null);
 
   const firstName = userData?.first_name || '';
   const lastName = userData?.last_name || '';
   const fullName = [firstName, lastName].filter(Boolean).join(' ') || 'Onbekend';
+
+  useEffect(() => {
+    if (!organizationId) return;
+    getOrganization(organizationId)
+      .then(org => setSchoolName(org.name))
+      .catch(err => console.error('Error loading organization:', err));
+  }, [organizationId]);
 
   return (
     <div className="max-w-2xl mx-auto">
@@ -42,6 +51,14 @@ export default function ProfilePage() {
             <div>
               <div className="text-xs text-gray-500 font-medium">Rol</div>
               <div className="text-sm text-gray-800">{role || '—'}</div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <Building2 className="w-5 h-5 text-gray-400" />
+            <div>
+              <div className="text-xs text-gray-500 font-medium">School</div>
+              <div className="text-sm text-gray-800">{schoolName || '—'}</div>
             </div>
           </div>
         </div>

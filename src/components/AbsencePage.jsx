@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { format, parseISO } from 'date-fns';
 import { nl } from 'date-fns/locale';
-import { Clock, AlertCircle, ArrowLeft, Trash2, Calendar } from 'lucide-react';
+import { Clock, AlertCircle, Trash2, Calendar } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 
 export default function AbsencePage({ onBack, onNavigateToDay }) {
@@ -55,17 +55,10 @@ export default function AbsencePage({ onBack, onNavigateToDay }) {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div>
       <div className="max-w-4xl mx-auto">
         {/* Header */}
-        <div className="mb-6 flex items-center gap-3">
-          <button
-            onClick={onBack}
-            className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-200 transition-colors text-gray-700"
-          >
-            <ArrowLeft className="w-5 h-5" />
-            Terug
-          </button>
+        <div className="mb-6">
           <h1 className="text-3xl font-bold text-gray-800">Afwezigheidsoverzicht</h1>
         </div>
 

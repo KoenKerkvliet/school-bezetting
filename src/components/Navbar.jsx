@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   LayoutDashboard, BookOpen, Users, Calendar, GraduationCap,
-  Settings, LogOut, User, ChevronDown, ChevronRight, Shield,
+  Settings, LogOut, User, ChevronDown, ChevronRight, Shield, ClipboardList,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
@@ -9,6 +9,7 @@ const mainNavItems = [
   { id: 'dashboard', label: 'Dashboard',    icon: LayoutDashboard },
   { id: 'absence',   label: 'Afwezigheid',  icon: Calendar },
   { id: 'staff',     label: "Collega's",    icon: Users },
+  { id: 'logbook',   label: 'Logboek',      icon: ClipboardList },
 ];
 
 const settingsItems = [

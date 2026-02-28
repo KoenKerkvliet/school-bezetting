@@ -9,6 +9,7 @@ import GroupsPage from './components/GroupsPage.jsx';
 import StaffPage from './components/StaffPage.jsx';
 import AdminDashboard from './components/AdminDashboard.jsx';
 import ProfilePage from './components/ProfilePage.jsx';
+import LogbookPage from './components/LogbookPage.jsx';
 import SyncStatusBar from './components/SyncStatusBar.jsx';
 
 function AppContent() {
@@ -54,6 +55,7 @@ function AppContent() {
           {currentPage === 'absence' && <AbsencePage onBack={() => setCurrentPage('dashboard')} onNavigateToDay={handleNavigateToDay} />}
           {currentPage === 'groups' && <GroupsPage />}
           {currentPage === 'staff' && <StaffPage />}
+          {currentPage === 'logbook' && <LogbookPage />}
           {currentPage === 'admin' && <AdminDashboard onBack={() => setCurrentPage('dashboard')} />}
           {currentPage === 'profile' && <ProfilePage />}
         </div>

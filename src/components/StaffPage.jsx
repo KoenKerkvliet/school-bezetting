@@ -3,7 +3,7 @@ import { format, parseISO, isSameDay } from 'date-fns';
 import { nl } from 'date-fns/locale';
 import {
   Plus, Pencil, Trash2, X, UserX, CalendarX,
-  CheckCircle, User, ChevronDown, ChevronUp, Clock,
+  CheckCircle, User, ChevronDown, ChevronUp, Clock, MoreVertical,
 } from 'lucide-react';
 import {
   useApp, DAYS, DAY_LABELS_NL, DAY_LABELS_SHORT,
@@ -72,6 +72,7 @@ export default function StaffPage() {
   const [absenceModal, setAbsenceModal] = useState(null);
   const [timeAbsenceModal, setTimeAbsenceModal] = useState(null);
   const [expandedStaff, setExpandedStaff] = useState(null);
+  const [openMenu, setOpenMenu] = useState(null); // staff id whose menu is open
 
   // ── Staff handlers ──────────────────────────────────────────────────────
 
@@ -208,7 +209,7 @@ export default function StaffPage() {
                   <h2 className={`text-sm font-bold uppercase tracking-wide ${section.color}`}>{section.label}</h2>
                   <span className={`text-xs font-medium rounded-full px-2 py-0.5 ${section.bg} ${section.color} ${section.border} border`}>{sectionStaff.length}</span>
                 </div>
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-3">
           {sectionStaff.map(member => {
             const memberAbsences = getAbsences(member.id);
             const memberTimeAbsences = getTimeAbsencesForStaff(member.id);
@@ -217,104 +218,133 @@ export default function StaffPage() {
             const todayAbsent = absences.some(a =>
               a.staffId === member.id && isSameDay(parseISO(a.date), new Date())
             );
+            const isMenuOpen = openMenu === member.id;
+
+            // Border color per role
+            const borderColor =
+              member.role === 'Leerkracht' ? 'border-l-blue-500' :
+              member.role === 'Onderwijs Ondersteuner' ? 'border-l-green-500' :
+              member.role === 'Onderwijsassistent' ? 'border-l-yellow-500' :
+              'border-l-gray-300';
+
+            // Compact schedule string
+            const scheduleStr = DAYS.map((day, i) => {
+              const { text } = scheduleLabel(member.schedule?.[day], groups, units);
+              return `${DAY_LABELS_SHORT[i]}: ${text}`;
+            }).join('  ·  ');
 
             return (
               <div
                 key={member.id}
-                className={`bg-white rounded-xl border shadow-sm overflow-hidden transition-all ${
-                  todayAbsent ? 'border-amber-300' : 'border-gray-200'
+                className={`bg-white rounded-xl border border-l-4 shadow-sm overflow-hidden transition-all ${borderColor} ${
+                  todayAbsent ? 'border-t-amber-300 border-r-amber-300 border-b-amber-300' : 'border-t-gray-200 border-r-gray-200 border-b-gray-200'
                 }`}
               >
-                {/* Staff card header */}
-                <div className="flex items-center gap-4 px-4 py-3">
-                  {/* Avatar */}
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0 ${
-                    todayAbsent ? 'bg-amber-400' : 'bg-blue-500'
-                  }`}>
-                    {member.name.split(' ').map(w => w[0]).slice(0, 2).join('')}
-                  </div>
-
-                  {/* Name + role */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="font-semibold text-gray-900">{member.name}</span>
-                      {todayAbsent && (
-                        <span className="inline-flex items-center gap-1 text-xs bg-amber-100 text-amber-700 rounded-full px-2 py-0.5 font-medium">
-                          <UserX className="w-3 h-3" />
-                          Vandaag afwezig
-                        </span>
-                      )}
-                      {(memberAbsences.length > 0 || memberTimeAbsences.length > 0) && !todayAbsent && (
-                        <span className="text-xs text-gray-400">
-                          {[
-                            memberAbsences.length > 0 ? `${memberAbsences.length} dag${memberAbsences.length !== 1 ? 'en' : ''}` : null,
-                            memberTimeAbsences.length > 0 ? `${memberTimeAbsences.length} tijdelijk` : null,
-                          ].filter(Boolean).join(' · ')}
-                        </span>
-                      )}
+                {/* Staff card */}
+                <div className="px-4 py-3 relative">
+                  <div className="flex items-start gap-3">
+                    {/* Avatar */}
+                    <div className={`w-9 h-9 rounded-full flex items-center justify-center text-white font-bold text-xs flex-shrink-0 mt-0.5 ${
+                      todayAbsent ? 'bg-amber-400' : 'bg-blue-500'
+                    }`}>
+                      {member.name.split(' ').map(w => w[0]).slice(0, 2).join('')}
                     </div>
-                    <span className={`text-xs font-medium rounded-full px-2 py-0.5 ${
-                      member.role === 'Leerkracht' ? 'bg-blue-100 text-blue-700' :
-                      member.role === 'Onderwijsassistent' ? 'bg-yellow-100 text-yellow-700' :
-                      member.role === 'Onderwijs Ondersteuner' ? 'bg-green-100 text-green-700' :
-                      member.role === 'Intern Begeleider' ? 'bg-purple-100 text-purple-700' :
-                      member.role === 'Directie' ? 'bg-red-100 text-red-700' :
-                      'bg-gray-100 text-gray-600'
-                    }`}>{member.role}</span>
-                  </div>
 
-                  {/* Week schedule summary */}
-                  <div className="hidden md:flex gap-1">
-                    {DAYS.map((day, i) => {
-                      const { text, color } = scheduleLabel(member.schedule?.[day], groups, units);
-                      return (
-                        <div key={day} className="text-center w-14">
-                          <div className="text-xs text-gray-400 mb-0.5">{DAY_LABELS_SHORT[i]}</div>
-                          <div className={`text-xs font-medium truncate ${color}`} title={text}>{text}</div>
-                        </div>
-                      );
-                    })}
-                  </div>
+                    {/* Name + schedule */}
+                    <div className="flex-1 min-w-0 pr-8">
+                      {/* Line 1: Name + optional badges */}
+                      <div className="flex items-center gap-2 truncate">
+                        <span className="font-semibold text-gray-900 truncate">{member.name}</span>
+                        {todayAbsent && (
+                          <span className="inline-flex items-center gap-1 text-xs bg-amber-100 text-amber-700 rounded-full px-2 py-0.5 font-medium flex-shrink-0">
+                            <UserX className="w-3 h-3" />
+                            Afwezig
+                          </span>
+                        )}
+                        {hasExpandable && !todayAbsent && (
+                          <span className="text-xs text-gray-400 flex-shrink-0">
+                            {[
+                              memberAbsences.length > 0 ? `${memberAbsences.length}x` : null,
+                              memberTimeAbsences.length > 0 ? `${memberTimeAbsences.length} uur` : null,
+                            ].filter(Boolean).join(' · ')}
+                          </span>
+                        )}
+                      </div>
 
-                  {/* Actions */}
-                  <div className="flex gap-1 flex-shrink-0">
-                    <button
-                      onClick={() => openAbsenceModal(member.id)}
-                      className="p-1.5 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
-                      title="Dag uitroosteren"
-                    >
-                      <CalendarX className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => openTimeAbsenceModal(member.id)}
-                      className="p-1.5 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
-                      title="Tijdelijk uitroosteren (uurtje)"
-                    >
-                      <Clock className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => openEditStaff(member)}
-                      className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                      title="Bewerken"
-                    >
-                      <Pencil className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => deleteStaff(member.id)}
-                      className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                      title="Verwijderen"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                    {hasExpandable && (
-                      <button
-                        onClick={() => setExpandedStaff(isExpanded ? null : member.id)}
-                        className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-                        title="Roosterwijzigingen tonen"
-                      >
-                        {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                      </button>
-                    )}
+                      {/* Line 2: Compact weekly schedule */}
+                      <div className="text-xs text-gray-500 mt-1 truncate" title={scheduleStr}>
+                        {DAYS.map((day, i) => {
+                          const { text, color } = scheduleLabel(member.schedule?.[day], groups, units);
+                          return (
+                            <span key={day}>
+                              {i > 0 && <span className="text-gray-300 mx-1">·</span>}
+                              <span className="text-gray-400">{DAY_LABELS_SHORT[i]}</span>{' '}
+                              <span className={`font-medium ${color}`}>{text}</span>
+                            </span>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Menu button (top-right) */}
+                    <div className="absolute top-2.5 right-2.5 flex items-center gap-0.5">
+                      {hasExpandable && (
+                        <button
+                          onClick={() => setExpandedStaff(isExpanded ? null : member.id)}
+                          className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                          title="Afwezigheden tonen"
+                        >
+                          {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                        </button>
+                      )}
+                      <div className="relative">
+                        <button
+                          onClick={() => setOpenMenu(isMenuOpen ? null : member.id)}
+                          className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                          title="Acties"
+                        >
+                          <MoreVertical className="w-4 h-4" />
+                        </button>
+
+                        {/* Dropdown menu */}
+                        {isMenuOpen && (
+                          <>
+                            <div className="fixed inset-0 z-10" onClick={() => setOpenMenu(null)} />
+                            <div className="absolute right-0 top-full mt-1 z-20 bg-white rounded-lg shadow-lg border border-gray-200 py-1 w-52">
+                              <button
+                                onClick={() => { openAbsenceModal(member.id); setOpenMenu(null); }}
+                                className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 hover:bg-amber-50 hover:text-amber-700 transition-colors"
+                              >
+                                <CalendarX className="w-4 h-4" />
+                                Dag uitroosteren
+                              </button>
+                              <button
+                                onClick={() => { openTimeAbsenceModal(member.id); setOpenMenu(null); }}
+                                className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 hover:bg-orange-50 hover:text-orange-700 transition-colors"
+                              >
+                                <Clock className="w-4 h-4" />
+                                Tijdelijk uitroosteren
+                              </button>
+                              <div className="border-t border-gray-100 my-1" />
+                              <button
+                                onClick={() => { openEditStaff(member); setOpenMenu(null); }}
+                                className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors"
+                              >
+                                <Pencil className="w-4 h-4" />
+                                Bewerken
+                              </button>
+                              <button
+                                onClick={() => { deleteStaff(member.id); setOpenMenu(null); }}
+                                className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                                Verwijderen
+                              </button>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 </div>
 

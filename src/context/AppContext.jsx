@@ -6,6 +6,7 @@ import {
   appGroupToDb, appUnitToDb, appStaffToDb, appStaffToScheduleRows,
   appAbsenceToDb, appTimeAbsenceToDb, appStaffDateAssignmentToDb,
 } from '../services/dataMapper';
+import { logAuditAction } from '../services/userService';
 
 const AppContext = createContext(null);
 
@@ -91,7 +92,7 @@ export function AppProvider({ children }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [syncError, setSyncError] = useState(null);
-  const { organizationId, isAuthenticated } = useAuth();
+  const { organizationId, isAuthenticated, user } = useAuth();
 
   // ── Load data on mount ──────────────────────────────────────────────
   useEffect(() => {
@@ -176,7 +177,7 @@ export function AppProvider({ children }) {
     // 2. Write to Supabase in background
     if (organizationId && action.type !== 'SET_INITIAL_STATE') {
       console.log('[AppContext] Syncing', action.type, 'to Supabase...');
-      writeToSupabase(organizationId, action)
+      writeToSupabase(organizationId, action, user?.id)
         .then(() => {
           console.log('[AppContext]', action.type, 'synced successfully');
           setSyncError(null);
@@ -188,7 +189,7 @@ export function AppProvider({ children }) {
     } else if (!organizationId && action.type !== 'SET_INITIAL_STATE') {
       console.warn('[AppContext] Not syncing:', action.type, '— organizationId is null');
     }
-  }, [organizationId]);
+  }, [organizationId, user]);
 
   // ── Save to localStorage as backup ──────────────────────────────────
   useEffect(() => {
@@ -212,9 +213,15 @@ export function AppProvider({ children }) {
   );
 }
 
-// ── Write a single action to Supabase (with field mapping) ────────────
-async function writeToSupabase(orgId, action) {
+// ── Write a single action to Supabase (with field mapping + audit logging) ──
+async function writeToSupabase(orgId, action, userId) {
   const p = action.payload;
+
+  // Helper to log audit (fire-and-forget, never blocks)
+  const audit = (resourceType, resourceId, changes) => {
+    logAuditAction(orgId, userId, action.type, resourceType, resourceId, changes)
+      .catch(() => {}); // silently ignore audit failures
+  };
 
   switch (action.type) {
     // ── Groups ──
@@ -222,6 +229,7 @@ async function writeToSupabase(orgId, action) {
       const row = appGroupToDb(p, orgId);
       const { error } = await supabase.from('groups').insert([row]);
       if (error) throw error;
+      audit('group', p.id, { name: p.name });
       return;
     }
     case 'UPDATE_GROUP': {
@@ -230,6 +238,7 @@ async function writeToSupabase(orgId, action) {
       const { error } = await supabase.from('groups')
         .update(updates).eq('id', id).eq('organization_id', orgId);
       if (error) throw error;
+      audit('group', p.id, { name: p.name });
       return;
     }
     case 'DELETE_GROUP': {
@@ -246,6 +255,7 @@ async function writeToSupabase(orgId, action) {
       const { error } = await supabase.from('groups')
         .delete().eq('id', p).eq('organization_id', orgId);
       if (error) throw error;
+      audit('group', p, {});
       return;
     }
 
@@ -254,6 +264,7 @@ async function writeToSupabase(orgId, action) {
       const row = appUnitToDb(p, orgId);
       const { error } = await supabase.from('units').insert([row]);
       if (error) throw error;
+      audit('unit', p.id, { name: p.name });
       return;
     }
     case 'UPDATE_UNIT': {
@@ -262,6 +273,7 @@ async function writeToSupabase(orgId, action) {
       const { error } = await supabase.from('units')
         .update(updates).eq('id', id).eq('organization_id', orgId);
       if (error) throw error;
+      audit('unit', p.id, { name: p.name });
       return;
     }
     case 'DELETE_UNIT': {
@@ -273,6 +285,7 @@ async function writeToSupabase(orgId, action) {
       const { error } = await supabase.from('units')
         .delete().eq('id', p).eq('organization_id', orgId);
       if (error) throw error;
+      audit('unit', p, {});
       return;
     }
 
@@ -288,6 +301,7 @@ async function writeToSupabase(orgId, action) {
         const { error: sErr } = await supabase.from('staff_schedule').insert(schedRows);
         if (sErr) throw new Error(`Schedule save failed: ${sErr.message}`);
       }
+      audit('staff', p.id, { name: p.name, staffName: p.name });
       return;
     }
     case 'UPDATE_STAFF': {
@@ -303,6 +317,7 @@ async function writeToSupabase(orgId, action) {
         const { error: sErr } = await supabase.from('staff_schedule').insert(schedRows);
         if (sErr) throw new Error(`Schedule update failed: ${sErr.message}`);
       }
+      audit('staff', p.id, { name: p.name, staffName: p.name });
       return;
     }
     case 'DELETE_STAFF': {
@@ -313,6 +328,7 @@ async function writeToSupabase(orgId, action) {
       const { error } = await supabase.from('staff')
         .delete().eq('id', p).eq('organization_id', orgId);
       if (error) throw error;
+      audit('staff', p, {});
       return;
     }
 
@@ -325,11 +341,13 @@ async function writeToSupabase(orgId, action) {
         console.error('[Sync] ADD_ABSENCE error:', error);
         throw error;
       }
+      audit('absence', p.id, { staffName: p.staffName || '', reason: p.reason, date: p.date });
       return;
     }
     case 'DELETE_ABSENCE': {
       const { error } = await supabase.from('absences').delete().eq('id', p);
       if (error) throw error;
+      audit('absence', p, {});
       return;
     }
 
@@ -342,11 +360,13 @@ async function writeToSupabase(orgId, action) {
         console.error('[Sync] ADD_TIME_ABSENCE error:', error);
         throw error;
       }
+      audit('time_absence', p.id, { staffName: p.staffName || '', reason: p.reason, date: p.date, startTime: p.startTime, endTime: p.endTime });
       return;
     }
     case 'DELETE_TIME_ABSENCE': {
       const { error } = await supabase.from('time_absences').delete().eq('id', p);
       if (error) throw error;
+      audit('time_absence', p, {});
       return;
     }
 
@@ -359,11 +379,13 @@ async function writeToSupabase(orgId, action) {
         console.error('[Sync] ADD_STAFF_DATE_ASSIGNMENT error:', error);
         throw error;
       }
+      audit('assignment', p.id, { staffName: p.staffName || '', groupName: p.groupName || '', date: p.date });
       return;
     }
     case 'DELETE_STAFF_DATE_ASSIGNMENT': {
       const { error } = await supabase.from('staff_date_assignments').delete().eq('id', p);
       if (error) throw error;
+      audit('assignment', p, {});
       return;
     }
     case 'DELETE_STAFF_DATE_ASSIGNMENTS_BY_DATE_AND_STAFF': {
@@ -374,6 +396,7 @@ async function writeToSupabase(orgId, action) {
         .eq('date', p.date)
         .eq('organization_id', orgId);
       if (error) throw error;
+      audit('assignment', null, { staffId: p.staffId, date: p.date });
       return;
     }
 
