@@ -17,10 +17,11 @@ export function AuthProvider({ children }) {
 
   // Check auth state on mount
   useEffect(() => {
-    const checkAuth = async () => {
+    let unsubscribe = null
+
+    const checkAuth = () => {
       try {
-        setLoading(true)
-        const unsubscribe = authService.onAuthStateChange(async (authState) => {
+        unsubscribe = authService.onAuthStateChange(async (authState) => {
           if (authState.isAuthenticated && authState.user) {
             setUser(authState.user)
             setIsEmailVerified(authState.isEmailVerified)
@@ -49,11 +50,6 @@ export function AuthProvider({ children }) {
           }
           setLoading(false)
         })
-
-        // Cleanup on unmount
-        return () => {
-          if (unsubscribe) unsubscribe()
-        }
       } catch (err) {
         console.error('Auth check error:', err)
         setError(err.message)
@@ -62,6 +58,11 @@ export function AuthProvider({ children }) {
     }
 
     checkAuth()
+
+    // Cleanup on unmount
+    return () => {
+      if (unsubscribe) unsubscribe()
+    }
   }, [])
 
   // Sign in
