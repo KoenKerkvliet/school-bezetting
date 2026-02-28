@@ -196,15 +196,16 @@ export function onAuthStateChange(callback) {
   const { data } = supabase.auth.onAuthStateChange(async (event, session) => {
     if (session?.user) {
       // Get user role and org info
-      const { data: userData } = await supabase
+      const { data: userData, error: userError } = await supabase
         .from('users')
         .select('*')
         .eq('id', session.user.id)
         .single()
 
+      // Always call callback, even if user data fetch fails
       callback({
         user: session.user,
-        userData,
+        userData: userError ? null : userData,
         isAuthenticated: true,
         isEmailVerified: !!session.user.email_confirmed_at,
       })
