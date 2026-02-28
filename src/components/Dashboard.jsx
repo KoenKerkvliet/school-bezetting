@@ -950,28 +950,6 @@ function GroupPopup({ group, date, staffList, allStaff, unitStaff, unit, unmanne
               )}
             </div>
 
-            {/* Unit staff */}
-            {unitStaff.length > 0 && (
-              <div>
-                <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
-                  Begeleiding {unit ? `(${unit.name})` : ''}
-                </h3>
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-2 space-y-0.5">
-                  {unitStaff.map(s => (
-                    <div
-                      key={s.id}
-                      onClick={e => { e.stopPropagation(); setStaffAction(s); }}
-                      className={`flex items-center gap-2 text-xs py-1 px-1 rounded cursor-pointer transition-colors ${s.absent ? 'text-amber-700 hover:bg-amber-100' : 'text-blue-700 hover:bg-blue-100'}`}
-                    >
-                      {s.absent ? <UserX className="w-3 h-3" /> : <Users className="w-3 h-3" />}
-                      <span className={s.absent ? 'line-through' : ''}>{s.name}</span>
-                      <span className="text-blue-400 ml-auto">{s.role}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
             {/* Absent staff */}
             {absentStaffList.length > 0 && (
               <div>
