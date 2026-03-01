@@ -538,6 +538,20 @@ function StaffMenu({ memberId, isOpen, onToggle, onClose, onAbsence, onTimeAbsen
 function StaffModal({ data, mode, groups, units, onSave, onClose }) {
   const [form, setForm] = useState(data);
 
+  // Track which days have custom (non-standard) work times in the UI
+  const [customTimeDays, setCustomTimeDays] = useState(() => {
+    const custom = new Set();
+    DAYS.forEach(day => {
+      const ds = data.schedule?.[day];
+      if (ds && ['group', 'unit', 'ambulant'].includes(ds.type)) {
+        if (ds.startTime && ds.endTime && !(ds.startTime === '08:00' && ds.endTime === '17:00')) {
+          custom.add(day);
+        }
+      }
+    });
+    return custom;
+  });
+
   function setField(key, value) {
     setForm(f => ({ ...f, [key]: value }));
   }
@@ -554,6 +568,10 @@ function StaffModal({ data, mode, groups, units, onSave, onClose }) {
 
   function setDayType(day, type) {
     const needsTimes = ['group', 'unit', 'ambulant'].includes(type);
+    // When switching to a work type, reset to standard hours
+    if (needsTimes) {
+      setCustomTimeDays(prev => { const next = new Set(prev); next.delete(day); return next; });
+    }
     setForm(f => ({
       ...f,
       schedule: {
@@ -563,6 +581,24 @@ function StaffModal({ data, mode, groups, units, onSave, onClose }) {
           : { type },
       },
     }));
+  }
+
+  function toggleStandardHours(day) {
+    setCustomTimeDays(prev => {
+      const next = new Set(prev);
+      if (next.has(day)) {
+        // Switch back to standard: set 08:00-17:00
+        next.delete(day);
+        setForm(f => ({
+          ...f,
+          schedule: { ...f.schedule, [day]: { ...f.schedule[day], startTime: '08:00', endTime: '17:00' } },
+        }));
+      } else {
+        // Switch to custom: keep current times so user can adjust them
+        next.add(day);
+      }
+      return next;
+    });
   }
 
   function handleSubmit(e) {
@@ -632,19 +668,22 @@ function StaffModal({ data, mode, groups, units, onSave, onClose }) {
             <h3 className="text-sm font-semibold text-gray-700 mb-3">Weekrooster</h3>
             <div className="rounded-xl border border-gray-200 overflow-hidden">
               {/* Header row */}
-              <div className="grid grid-cols-[100px_1fr_1fr_160px] bg-gray-50 border-b border-gray-200 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+              <div className="grid grid-cols-[90px_1fr_1fr_70px_140px] bg-gray-50 border-b border-gray-200 text-xs font-semibold text-gray-500 uppercase tracking-wide">
                 <div className="px-3 py-2">Dag</div>
                 <div className="px-3 py-2">Type</div>
                 <div className="px-3 py-2">Koppeling</div>
-                <div className="px-3 py-2">Werktijden</div>
+                <div className="px-2 py-2 text-center">Standaard</div>
+                <div className="px-2 py-2">Werktijden</div>
               </div>
               {/* Day rows */}
               {DAYS.map((day, i) => {
                 const ds = form.schedule[day] || { type: 'none' };
+                const hasTimes = ['group', 'unit', 'ambulant'].includes(ds.type);
+                const isCustom = customTimeDays.has(day);
                 return (
                   <div
                     key={day}
-                    className={`grid grid-cols-[100px_1fr_1fr_160px] items-center border-b last:border-b-0 border-gray-100 ${
+                    className={`grid grid-cols-[90px_1fr_1fr_70px_140px] items-center border-b last:border-b-0 border-gray-100 ${
                       i % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'
                     }`}
                   >
@@ -693,25 +732,44 @@ function StaffModal({ data, mode, groups, units, onSave, onClose }) {
                         <span className="text-xs text-gray-400 px-2">—</span>
                       )}
                     </div>
-                    <div className="px-3 py-2">
-                      {(ds.type === 'group' || ds.type === 'unit' || ds.type === 'ambulant') ? (
-                        <div className="flex items-center gap-1">
-                          <input
-                            type="time"
-                            value={ds.startTime || ''}
-                            onChange={e => setDaySchedule(day, 'startTime', e.target.value || undefined)}
-                            className="w-[70px] border border-gray-300 rounded px-1.5 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          />
-                          <span className="text-gray-400 text-xs">–</span>
-                          <input
-                            type="time"
-                            value={ds.endTime || ''}
-                            onChange={e => setDaySchedule(day, 'endTime', e.target.value || undefined)}
-                            className="w-[70px] border border-gray-300 rounded px-1.5 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          />
-                        </div>
+                    {/* Standaard checkbox */}
+                    <div className="px-2 py-2 flex justify-center">
+                      {hasTimes ? (
+                        <input
+                          type="checkbox"
+                          checked={!isCustom}
+                          onChange={() => toggleStandardHours(day)}
+                          className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                          title={isCustom ? 'Klik voor standaard werktijden (08:00–17:00)' : 'Standaard werktijden (08:00–17:00)'}
+                        />
                       ) : (
-                        <span className="text-xs text-gray-400 px-2">—</span>
+                        <span className="text-xs text-gray-400">—</span>
+                      )}
+                    </div>
+                    {/* Werktijden */}
+                    <div className="px-2 py-2">
+                      {hasTimes ? (
+                        isCustom ? (
+                          <div className="flex items-center gap-1">
+                            <input
+                              type="time"
+                              value={ds.startTime || ''}
+                              onChange={e => setDaySchedule(day, 'startTime', e.target.value || undefined)}
+                              className="w-[62px] border border-gray-300 rounded px-1 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                            <span className="text-gray-400 text-xs">–</span>
+                            <input
+                              type="time"
+                              value={ds.endTime || ''}
+                              onChange={e => setDaySchedule(day, 'endTime', e.target.value || undefined)}
+                              className="w-[62px] border border-gray-300 rounded px-1 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                          </div>
+                        ) : (
+                          <span className="text-xs text-gray-400">08:00–17:00</span>
+                        )
+                      ) : (
+                        <span className="text-xs text-gray-400">—</span>
                       )}
                     </div>
                   </div>
