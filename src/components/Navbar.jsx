@@ -1,20 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import {
   LayoutDashboard, BookOpen, Users, Calendar,
-  Settings, LogOut, User, ClipboardList, Menu, X,
+  Settings, LogOut, User, ClipboardList, Menu, X, BarChart3,
 } from 'lucide-react';
 import logoImg from '/favicon.svg';
 import { useAuth } from '../context/AuthContext';
 import { isAdminOrAbove } from '../utils/roles';
-import changelog from '../changelog.json';
-
-const currentVersion = changelog[0]?.version || '1.0.0';
-
 const mainNavItems = [
   { id: 'dashboard', label: 'Dashboard',    icon: LayoutDashboard },
   { id: 'absence',   label: 'Afwezigheid',  icon: Calendar },
   { id: 'staff',     label: "Collega's",    icon: Users },
   { id: 'groups',    label: 'Groepen',      icon: BookOpen, adminOnly: true },
+  { id: 'statistics', label: 'Statistieken', icon: BarChart3 },
   { id: 'logbook',   label: 'Logboek',      icon: ClipboardList },
 ];
 
@@ -120,15 +117,6 @@ export default function Navbar({ currentPage, setCurrentPage }) {
         </button>
       </div>
 
-      {/* Version footer */}
-      <div className="px-3 pb-3 pt-1 border-t border-slate-700">
-        <button
-          onClick={() => navigate('changelog')}
-          className="w-full text-center text-xs text-slate-500 hover:text-slate-300 transition-colors"
-        >
-          v{currentVersion}
-        </button>
-      </div>
     </>
   );
 
