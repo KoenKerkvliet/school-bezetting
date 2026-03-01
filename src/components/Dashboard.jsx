@@ -6,9 +6,9 @@ import {
 import { nl } from 'date-fns/locale';
 import {
   ChevronLeft, ChevronRight, AlertTriangle, CheckCircle,
-  UserX, Users, Clock, X, Plus, UserPlus, Printer, StickyNote, Pencil, Trash2,
+  UserX, Users, Clock, X, Plus, UserPlus, Printer, StickyNote, Pencil, Trash2, CalendarOff,
 } from 'lucide-react';
-import { useApp, DAYS, DAY_LABELS_NL, generateId, getGroupTimesForDay } from '../context/AppContext.jsx';
+import { useApp, DAYS, DAY_LABELS_NL, generateId, getGroupTimesForDay, getClosureForDate, isFullClosureDate } from '../context/AppContext.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import { isPlannerOrAbove } from '../utils/roles';
 
@@ -54,7 +54,7 @@ function workingHoursCover(daySchedule, requiredStart, requiredEnd) {
 
 export default function Dashboard({ initialDate, onInitialDateUsed }) {
   const { state, dispatch } = useApp();
-  const { groups, units, staff, absences, timeAbsences, unitOverrides, dayNotes, gradeLevelSchedules } = state;
+  const { groups, units, staff, absences, timeAbsences, unitOverrides, dayNotes, gradeLevelSchedules, schoolClosures } = state;
   const { role } = useAuth();
   const canPlan = isPlannerOrAbove(role);
 
@@ -291,6 +291,12 @@ export default function Dashboard({ initialDate, onInitialDateUsed }) {
     return (dayNotes || []).find(n => n.date === dateStr);
   }
 
+  // ── School closure helpers ─────────────────────────────────────────────
+  function getClosureForDay(date) {
+    const dateStr = formatLocalDate(date);
+    return getClosureForDate(schoolClosures, dateStr);
+  }
+
   // ── PDF generation ──────────────────────────────────────────────────────
 
   function generateWeekPDF(startWeekOffset = 0, weekCount = 1) {
@@ -300,6 +306,15 @@ export default function Dashboard({ initialDate, onInitialDateUsed }) {
         const dayKey = getDayKey(date);
         const dayShort = capitalize(format(date, 'EEEE', { locale: nl }));
         const dayDate = format(date, 'd MMM', { locale: nl });
+
+        // Check for school closures
+        const closure = getClosureForDay(date);
+        const isFullClosure = closure && (closure.type === 'vacation' || closure.type === 'holiday');
+        const isHalfDay = closure && closure.type === 'half_day';
+
+        if (isFullClosure) {
+          return { dayShort, dayDate, isFullClosure: true, closureName: closure.name, closureType: closure.type, changedGroups: [], unitSupportData: [], dayNote: null };
+        }
 
         const changedGroups = [...groups]
           .sort((a, b) => a.name.localeCompare(b.name, 'nl'))
@@ -335,20 +350,30 @@ export default function Dashboard({ initialDate, onInitialDateUsed }) {
           .filter(Boolean);
 
         const dayNote = getDayNote(date);
-        return { dayShort, dayDate, changedGroups, unitSupportData, dayNote };
+        return { dayShort, dayDate, changedGroups, unitSupportData, dayNote, isHalfDay, closureName: isHalfDay ? closure.name : null, freeFromTime: isHalfDay ? closure.freeFromTime : null };
       });
 
       const dateRange = `${capitalize(format(wkDates[0], 'd MMMM', { locale: nl }))} t/m ${format(wkDates[4], 'd MMMM yyyy', { locale: nl })}`;
-      const hasAnyChanges = daysData.some(d => d.changedGroups.length > 0);
+      const hasAnyChanges = daysData.some(d => d.isFullClosure || d.changedGroups.length > 0);
       const hasAnySupport = daysData.some(d => d.unitSupportData.length > 0);
       const hasAnyNotes = daysData.some(d => d.dayNote);
 
-      const columns = daysData.map(({ dayShort, dayDate, changedGroups, unitSupportData, dayNote }) => {
+      const columns = daysData.map(({ dayShort, dayDate, changedGroups, unitSupportData, dayNote, isFullClosure: dayFullClosure, closureName, closureType, isHalfDay: dayHalfDay, freeFromTime }) => {
         let content = '';
-        if (changedGroups.length === 0) {
-          content += `<div style="color:#94a3b8;font-size:9px;font-style:italic;margin-bottom:8px;">Geen wisselingen</div>`;
+        if (dayFullClosure) {
+          content += `<div style="text-align:center;padding:16px 4px;color:#9ca3af;">`;
+          content += `<div style="font-size:18px;margin-bottom:4px;">📅</div>`;
+          content += `<div style="font-weight:600;font-size:10px;">${closureName}</div>`;
+          content += `<div style="font-size:9px;color:#b0b0b0;margin-top:2px;">${closureType === 'vacation' ? 'Vakantie' : 'Feestdag'}</div>`;
+          content += `</div>`;
         } else {
-          changedGroups.forEach(({ group, gs, unmanned }) => {
+          if (dayHalfDay) {
+            content += `<div style="background:#fef3c7;border:1px solid #fde68a;border-radius:4px;padding:3px 6px;font-size:9px;color:#92400e;font-weight:600;margin-bottom:8px;">⏰ ${closureName} — vrij vanaf ${freeFromTime}</div>`;
+          }
+          if (changedGroups.length === 0) {
+            content += `<div style="color:#94a3b8;font-size:9px;font-style:italic;margin-bottom:8px;">Geen wisselingen</div>`;
+          } else {
+            changedGroups.forEach(({ group, gs, unmanned }) => {
             content += `<div style="margin-bottom:6px;">`;
             content += `<div style="font-weight:700;font-size:10px;color:#1e293b;border-left:3px solid ${group.color};padding-left:5px;margin-bottom:2px;">${group.name}`;
             if (unmanned) content += ` <span style="color:#dc2626;">⚠</span>`;
@@ -375,33 +400,34 @@ export default function Dashboard({ initialDate, onInitialDateUsed }) {
             });
             content += `</div>`;
           });
-        }
-        if (unitSupportData.length > 0) {
-          content += `<div style="margin-top:8px;padding-top:6px;border-top:1px solid #e2e8f0;">`;
-          content += `<div style="font-weight:700;font-size:9px;color:#6366f1;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">Ondersteuning</div>`;
-          unitSupportData.forEach(({ unit, unitStaff }) => {
-            content += `<div style="margin-bottom:4px;">`;
-            content += `<div style="font-size:9px;font-weight:600;color:#4f46e5;margin-bottom:1px;">${unit.name}</div>`;
-            unitStaff.forEach(s => {
-              if (s.absent) {
-                content += `<div style="font-size:9px;padding:1px 0 1px 8px;color:#92400e;">`;
-                content += `<s>${s.name.split(' ')[0]}</s> <span style="color:#b45309;">(${s.reason || 'afw.'})</span>`;
-                content += `</div>`;
-              } else {
-                content += `<div style="font-size:9px;padding:1px 0 1px 8px;color:#4338ca;">`;
-                content += `${s.name.split(' ')[0]}`;
-                content += `</div>`;
-              }
+          }
+          if (unitSupportData.length > 0) {
+            content += `<div style="margin-top:8px;padding-top:6px;border-top:1px solid #e2e8f0;">`;
+            content += `<div style="font-weight:700;font-size:9px;color:#6366f1;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">Ondersteuning</div>`;
+            unitSupportData.forEach(({ unit, unitStaff }) => {
+              content += `<div style="margin-bottom:4px;">`;
+              content += `<div style="font-size:9px;font-weight:600;color:#4f46e5;margin-bottom:1px;">${unit.name}</div>`;
+              unitStaff.forEach(s => {
+                if (s.absent) {
+                  content += `<div style="font-size:9px;padding:1px 0 1px 8px;color:#92400e;">`;
+                  content += `<s>${s.name.split(' ')[0]}</s> <span style="color:#b45309;">(${s.reason || 'afw.'})</span>`;
+                  content += `</div>`;
+                } else {
+                  content += `<div style="font-size:9px;padding:1px 0 1px 8px;color:#4338ca;">`;
+                  content += `${s.name.split(' ')[0]}`;
+                  content += `</div>`;
+                }
+              });
+              content += `</div>`;
             });
             content += `</div>`;
-          });
-          content += `</div>`;
-        }
-        if (dayNote) {
-          content += `<div style="margin-top:8px;padding-top:6px;border-top:1px solid #e2e8f0;">`;
-          content += `<div style="font-weight:700;font-size:9px;color:#d97706;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">📝 Notitie</div>`;
-          content += `<div style="font-size:9px;color:#92400e;font-style:italic;padding:3px 6px;background:#fef3c7;border-radius:3px;white-space:pre-wrap;">${dayNote.text}</div>`;
-          content += `</div>`;
+          }
+          if (dayNote) {
+            content += `<div style="margin-top:8px;padding-top:6px;border-top:1px solid #e2e8f0;">`;
+            content += `<div style="font-weight:700;font-size:9px;color:#d97706;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">📝 Notitie</div>`;
+            content += `<div style="font-size:9px;color:#92400e;font-style:italic;padding:3px 6px;background:#fef3c7;border-radius:3px;white-space:pre-wrap;">${dayNote.text}</div>`;
+            content += `</div>`;
+          }
         }
         return { dayShort, dayDate, content };
       });
@@ -563,7 +589,10 @@ export default function Dashboard({ initialDate, onInitialDateUsed }) {
             const today = isToday(date);
             const selected = selectedDay && isSameDay(selectedDay, date);
             const dayKey = getDayKey(date);
-            const { unmannedCount, absentCount } = getDayStats(date);
+            const closure = getClosureForDay(date);
+            const isFullClosure = closure && (closure.type === 'vacation' || closure.type === 'holiday');
+            const isHalfDay = closure && closure.type === 'half_day';
+            const { unmannedCount, absentCount } = isFullClosure ? { unmannedCount: 0, absentCount: 0 } : getDayStats(date);
             const hasProblems = unmannedCount > 0;
             const availableStaff = getAvailableStaff(date);
             const ambulantStaff = getAmbulantStaff(date);
@@ -585,7 +614,9 @@ export default function Dashboard({ initialDate, onInitialDateUsed }) {
               <div
                 key={i}
                 className={`rounded-xl border-2 transition-all ${
-                  selected
+                  isFullClosure
+                    ? 'border-gray-200 opacity-60'
+                    : selected
                     ? 'border-blue-400 shadow-md'
                     : today
                     ? 'border-blue-300'
@@ -597,19 +628,30 @@ export default function Dashboard({ initialDate, onInitialDateUsed }) {
                 {/* Day header — clickable to open day detail */}
                 <div
                   onClick={() => setSelectedDay(date)}
-                  className={`px-3 py-2 cursor-pointer transition-colors ${today ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-gray-50 border-b border-gray-100 hover:bg-gray-100'}`}
+                  className={`px-3 py-2 cursor-pointer transition-colors ${
+                    isFullClosure
+                      ? 'bg-gray-200 text-gray-500'
+                      : today
+                      ? 'bg-blue-600 text-white hover:bg-blue-700'
+                      : 'bg-gray-50 border-b border-gray-100 hover:bg-gray-100'
+                  }`}
                 >
                   <div className="flex items-center justify-between">
                     <div>
-                      <div className={`font-semibold text-sm ${today ? 'text-white' : 'text-gray-800'} flex items-center gap-1`}>
+                      <div className={`font-semibold text-sm ${isFullClosure ? 'text-gray-500' : today ? 'text-white' : 'text-gray-800'} flex items-center gap-1`}>
                         {DAY_LABELS_NL[i]}
                         {getDayNote(date) && <span title={getDayNote(date).note}><StickyNote className={`w-3.5 h-3.5 ${today ? 'text-yellow-300' : 'text-yellow-500'}`} /></span>}
                       </div>
-                      <div className={`text-xs ${today ? 'text-blue-100' : 'text-gray-400'}`}>
+                      <div className={`text-xs ${isFullClosure ? 'text-gray-400' : today ? 'text-blue-100' : 'text-gray-400'}`}>
                         {format(date, 'd MMM', { locale: nl })}
                       </div>
                     </div>
-                    {unmannedCount > 0 ? (
+                    {isFullClosure ? (
+                      <span className="inline-flex items-center gap-0.5 text-xs bg-gray-400 text-white rounded px-1.5 py-0.5 font-medium">
+                        <CalendarOff className="w-2.5 h-2.5" />
+                        Vrij
+                      </span>
+                    ) : unmannedCount > 0 ? (
                       <span className="inline-flex items-center gap-0.5 text-xs bg-red-500 text-white rounded px-1.5 py-0.5 font-medium">
                         <AlertTriangle className="w-2.5 h-2.5" />
                         {unmannedCount} onbemand
@@ -623,8 +665,25 @@ export default function Dashboard({ initialDate, onInitialDateUsed }) {
                   </div>
                 </div>
 
+                {/* Full closure body */}
+                {isFullClosure ? (
+                  <div className="p-4 text-center">
+                    <CalendarOff className="w-6 h-6 text-gray-300 mx-auto mb-1" />
+                    <div className="text-sm font-medium text-gray-400">{closure.name}</div>
+                    <div className="text-xs text-gray-300 mt-0.5">
+                      {closure.type === 'vacation' ? 'Vakantie' : 'Feestdag'}
+                    </div>
+                  </div>
+                ) : (
+                <>
                 {/* Group cards */}
                 <div className="p-2 space-y-1">
+                  {isHalfDay && (
+                    <div className="mb-1 px-2 py-1 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-700 font-medium flex items-center gap-1">
+                      <Clock className="w-3 h-3" />
+                      {closure.name} — vrij vanaf {closure.freeFromTime}
+                    </div>
+                  )}
                   {[...groups].sort((a, b) => a.name.localeCompare(b.name, 'nl')).map(group => {
                     const isActive = isGroupActiveOnDay(group, dayKey);
 
@@ -793,7 +852,9 @@ export default function Dashboard({ initialDate, onInitialDateUsed }) {
                 {/* Day note */}
                 <DayNoteInline date={date} note={getDayNote(date)} dispatch={dispatch} canPlan={canPlan} />
 
-              </div>
+              </>
+              )}
+            </div>
             );
           })}
         </div>

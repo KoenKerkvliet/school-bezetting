@@ -297,3 +297,28 @@ export function appGradeLevelScheduleToDb(app, orgId) {
     organization_id: orgId,
   }
 }
+
+// ── School Closures ───────────────────────────────────────────────────
+
+export function dbSchoolClosureToApp(db) {
+  return {
+    id: db.id,
+    name: db.name,
+    type: db.type,
+    startDate: db.start_date,
+    endDate: db.end_date,
+    freeFromTime: db.free_from_time || null,
+  }
+}
+
+export function appSchoolClosureToDb(app, orgId) {
+  return {
+    id: app.id,
+    name: app.name,
+    type: app.type,
+    start_date: app.startDate,
+    end_date: app.endDate,
+    free_from_time: app.freeFromTime || null,
+    organization_id: orgId,
+  }
+}

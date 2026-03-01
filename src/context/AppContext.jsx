@@ -6,6 +6,7 @@ import {
   appGroupToDb, appUnitToDb, appStaffToDb, appStaffToScheduleRows,
   appAbsenceToDb, appTimeAbsenceToDb, appStaffDateAssignmentToDb, appUnitOverrideToDb, appDayNoteToDb,
   appGradeLevelScheduleToDb,
+  appSchoolClosureToDb,
 } from '../services/dataMapper';
 import { logAuditAction } from '../services/userService';
 
@@ -22,6 +23,7 @@ const emptyState = {
   unitOverrides: [], // Day-specific unit reassignments { id, staffId, date, unitId }
   dayNotes: [], // Notes per day { id, date, text }
   gradeLevelSchedules: [], // Lesson times per grade level per day
+  schoolClosures: [], // Vacations, holidays, half days
 };
 
 function reducer(state, action) {
@@ -128,6 +130,14 @@ function reducer(state, action) {
     case 'SET_GRADE_LEVEL_SCHEDULES':
       return { ...state, gradeLevelSchedules: action.payload };
 
+    // ── School Closures ──
+    case 'ADD_SCHOOL_CLOSURE':
+      return { ...state, schoolClosures: [...(state.schoolClosures || []), action.payload] };
+    case 'UPDATE_SCHOOL_CLOSURE':
+      return { ...state, schoolClosures: (state.schoolClosures || []).map(c => c.id === action.payload.id ? action.payload : c) };
+    case 'DELETE_SCHOOL_CLOSURE':
+      return { ...state, schoolClosures: (state.schoolClosures || []).filter(c => c.id !== action.payload) };
+
     default:
       return state;
   }
@@ -177,6 +187,7 @@ export function AppProvider({ children }) {
                 unitOverrides: data.unitOverrides || [],
                 dayNotes: data.dayNotes || [],
                 gradeLevelSchedules: glsFromDb.length > 0 ? glsFromDb : DEFAULT_GRADE_LEVEL_SCHEDULES,
+                schoolClosures: data.schoolClosures || [],
               }
             });
             console.log('[AppContext] Loaded from Supabase:', data.groups?.length, 'groups,', data.staff?.length, 'staff');
@@ -525,6 +536,26 @@ async function writeToSupabase(orgId, action, userId) {
       return;
     }
 
+    // ── School Closures ──
+    case 'ADD_SCHOOL_CLOSURE': {
+      const row = appSchoolClosureToDb(p, orgId);
+      const { error } = await supabase.from('school_closures').insert([row]);
+      if (error) throw error;
+      return;
+    }
+    case 'UPDATE_SCHOOL_CLOSURE': {
+      const row = appSchoolClosureToDb(p, orgId);
+      const { id, organization_id, ...updates } = row;
+      const { error } = await supabase.from('school_closures').update(updates).eq('id', id).eq('organization_id', orgId);
+      if (error) throw error;
+      return;
+    }
+    case 'DELETE_SCHOOL_CLOSURE': {
+      const { error } = await supabase.from('school_closures').delete().eq('id', p).eq('organization_id', orgId);
+      if (error) throw error;
+      return;
+    }
+
     default:
       console.warn('[Sync] Unknown action type:', action.type);
   }
@@ -611,4 +642,21 @@ export function generateId() {
     const v = c === 'x' ? r : (r & 0x3 | 0x8);
     return v.toString(16);
   });
+}
+
+/**
+ * Check if a given date string (YYYY-MM-DD) falls within any school closure.
+ * Returns the matching closure object or null.
+ */
+export function getClosureForDate(schoolClosures, dateStr) {
+  if (!schoolClosures || !dateStr) return null;
+  return schoolClosures.find(c => dateStr >= c.startDate && dateStr <= c.endDate) || null;
+}
+
+/**
+ * Check if a date is a full closure (vacation or holiday).
+ */
+export function isFullClosureDate(schoolClosures, dateStr) {
+  const closure = getClosureForDate(schoolClosures, dateStr);
+  return closure && (closure.type === 'vacation' || closure.type === 'holiday');
 }
