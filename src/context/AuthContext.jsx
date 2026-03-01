@@ -158,37 +158,38 @@ export function AuthProvider({ children }) {
     setOrgSettings({})
   }
 
-  // Auth listener — NON-BLOCKING: set auth state immediately, fetch user data in background
+  // Auth listener — keeps loading=true until both auth AND user data are ready
+  // This prevents a flash of content between the auth spinner and app-data spinner
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         console.log('[Auth] Event:', event, session ? 'has session' : 'no session')
 
         if (session?.user) {
-          // Immediately mark as authenticated (don't wait for user data)
+          // Immediately mark as authenticated
           setUser(session.user)
           setIsAuthenticated(true)
           setIsEmailVerified(!!session.user.email_confirmed_at)
           setError(null)
 
-          // Fetch user data in background (role, org, permissions)
-          // Pass authUser so we can create record if missing
-          fetchUserData(session.user.id).then(ud => applyUserData(ud, session.user))
+          // Fetch user data (role, org, permissions) — loading stays true until done
+          fetchUserData(session.user.id)
+            .then(ud => applyUserData(ud, session.user))
+            .finally(() => setLoading(false))
         } else {
           clearAuth()
-        }
-
-        // Stop loading spinner on initial check
-        if (event === 'INITIAL_SESSION') {
-          setLoading(false)
+          // No session — stop loading immediately
+          if (event === 'INITIAL_SESSION') {
+            setLoading(false)
+          }
         }
       }
     )
 
-    // Safety timeout: if INITIAL_SESSION never fires, stop loading after 2s
+    // Safety timeout: if INITIAL_SESSION never fires, stop loading after 4s
     const timeout = setTimeout(() => {
       setLoading(false)
-    }, 2000)
+    }, 4000)
 
     return () => {
       clearTimeout(timeout)
@@ -199,6 +200,7 @@ export function AuthProvider({ children }) {
   // Sign in with real timeout using Promise.race
   const signIn = async (email, password) => {
     setError(null)
+    setLoading(true)  // Show loading screen while user data loads after sign-in
 
     const timeoutPromise = new Promise((_, reject) =>
       setTimeout(() => reject(new Error('Timeout')), 10000)

@@ -157,48 +157,49 @@ export function AppProvider({ children }) {
       return;
     }
 
+    // Wait for organizationId before loading — prevents flash of
+    // localStorage data that gets immediately replaced by Supabase data
+    if (!organizationId) {
+      setLoading(true);
+      return;
+    }
+
     let cancelled = false;
 
     async function load() {
       try {
         setLoading(true);
 
-        if (organizationId) {
-          // Try Supabase first
-          console.log('[AppContext] Loading from Supabase, orgId:', organizationId);
-          const data = await db.loadAllData(organizationId);
+        // Load from Supabase
+        console.log('[AppContext] Loading from Supabase, orgId:', organizationId);
+        const data = await db.loadAllData(organizationId);
 
-          if (cancelled) return;
+        if (cancelled) return;
 
-          const hasData = (data.groups?.length > 0 || data.staff?.length > 0);
+        const hasData = (data.groups?.length > 0 || data.staff?.length > 0);
 
-          if (hasData) {
-            const glsFromDb = data.gradeLevelSchedules || [];
+        if (hasData) {
+          const glsFromDb = data.gradeLevelSchedules || [];
 
-            dispatch({
-              type: 'SET_INITIAL_STATE',
-              payload: {
-                groups: data.groups || [],
-                units: data.units || [],
-                staff: data.staff || [],
-                absences: data.absences || [],
-                timeAbsences: data.timeAbsences || [],
-                staffDateAssignments: data.staffDateAssignments || [],
-                unitOverrides: data.unitOverrides || [],
-                dayNotes: data.dayNotes || [],
-                gradeLevelSchedules: glsFromDb.length > 0 ? glsFromDb : DEFAULT_GRADE_LEVEL_SCHEDULES,
-                schoolClosures: data.schoolClosures || [],
-              }
-            });
-            console.log('[AppContext] Loaded from Supabase:', data.groups?.length, 'groups,', data.staff?.length, 'staff');
-          } else {
-            // Supabase is empty — try localStorage
-            console.log('[AppContext] Supabase empty, trying localStorage');
-            loadLocalStorage(cancelled);
-          }
+          dispatch({
+            type: 'SET_INITIAL_STATE',
+            payload: {
+              groups: data.groups || [],
+              units: data.units || [],
+              staff: data.staff || [],
+              absences: data.absences || [],
+              timeAbsences: data.timeAbsences || [],
+              staffDateAssignments: data.staffDateAssignments || [],
+              unitOverrides: data.unitOverrides || [],
+              dayNotes: data.dayNotes || [],
+              gradeLevelSchedules: glsFromDb.length > 0 ? glsFromDb : DEFAULT_GRADE_LEVEL_SCHEDULES,
+              schoolClosures: data.schoolClosures || [],
+            }
+          });
+          console.log('[AppContext] Loaded from Supabase:', data.groups?.length, 'groups,', data.staff?.length, 'staff');
         } else {
-          // No organizationId — use localStorage
-          console.log('[AppContext] No organizationId, using localStorage');
+          // Supabase is empty — try localStorage
+          console.log('[AppContext] Supabase empty, trying localStorage');
           loadLocalStorage(cancelled);
         }
 

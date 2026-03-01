@@ -2,32 +2,26 @@ import React, { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
 import LoginPage from './LoginPage'
 import EmailVerificationPage from './EmailVerificationPage'
+import LoadingScreen from './LoadingScreen'
 
 /**
  * Protected route wrapper
- * Only shows content if user is authenticated and email is verified
- * Has a built-in failsafe: after 6 seconds, stops showing spinner regardless
+ * Shows branded loading screen until auth + user data are ready.
+ * Then shows LoginPage, EmailVerificationPage, or app content.
  */
 export default function ProtectedRoute({ children }) {
   const { isAuthenticated, isEmailVerified, loading } = useAuth()
   const [forceReady, setForceReady] = useState(false)
 
-  // Failsafe: never show spinner longer than 6 seconds
+  // Failsafe: never show loading screen longer than 6 seconds
   useEffect(() => {
-    if (!loading) return
-    const timer = setTimeout(() => setForceReady(true), 3000)
+    if (!loading) { setForceReady(false); return }
+    const timer = setTimeout(() => setForceReady(true), 6000)
     return () => clearTimeout(timer)
   }, [loading])
 
   if (loading && !forceReady) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
-          <p className="text-gray-600">Bezig met laden...</p>
-        </div>
-      </div>
-    )
+    return <LoadingScreen />
   }
 
   if (!isAuthenticated) {

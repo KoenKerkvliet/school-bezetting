@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext.jsx';
 import { AppProvider, useApp } from './context/AppContext.jsx';
 import { isAdminOrAbove } from './utils/roles';
+import LoadingScreen from './components/LoadingScreen.jsx';
 import ProtectedRoute from './components/ProtectedRoute.jsx';
 import Navbar from './components/Navbar.jsx';
 import Dashboard from './components/Dashboard.jsx';
@@ -42,14 +43,7 @@ function AppContent() {
   };
 
   if (appLoading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
-          <p className="text-gray-600">Data laden...</p>
-        </div>
-      </div>
-    );
+    return <LoadingScreen />;
   }
 
   if (appError) {
