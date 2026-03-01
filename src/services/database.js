@@ -6,6 +6,7 @@ import {
   dbAbsenceToApp,
   dbTimeAbsenceToApp,
   dbStaffDateAssignmentToApp,
+  dbDayNoteToApp,
 } from './dataMapper'
 
 // ============ LOAD ALL DATA (with mapping) ============
@@ -19,6 +20,7 @@ export async function loadAllData(organizationId) {
     { data: absences, error: aErr },
     { data: timeAbsences, error: taErr },
     { data: staffDateAssignments, error: sdaErr },
+    { data: dayNotes, error: dnErr },
   ] = await Promise.all([
     supabase.from('groups').select('*').eq('organization_id', organizationId),
     supabase.from('units').select('*').eq('organization_id', organizationId),
@@ -27,6 +29,7 @@ export async function loadAllData(organizationId) {
     supabase.from('absences').select('*').eq('organization_id', organizationId),
     supabase.from('time_absences').select('*').eq('organization_id', organizationId),
     supabase.from('staff_date_assignments').select('*').eq('organization_id', organizationId),
+    supabase.from('day_notes').select('*').eq('organization_id', organizationId),
   ])
 
   // Log any errors for debugging
@@ -37,6 +40,7 @@ export async function loadAllData(organizationId) {
   if (aErr) console.warn('[DB] absences error:', aErr.message)
   if (taErr) console.warn('[DB] time_absences error:', taErr.message)
   if (sdaErr) console.warn('[DB] staff_date_assignments error:', sdaErr.message)
+  if (dnErr) console.warn('[DB] day_notes error:', dnErr.message)
 
   // Map from DB format → App format
   const scheduleRows = schedules || []
@@ -48,5 +52,6 @@ export async function loadAllData(organizationId) {
     absences: (absences || []).map(dbAbsenceToApp),
     timeAbsences: (timeAbsences || []).map(dbTimeAbsenceToApp),
     staffDateAssignments: (staffDateAssignments || []).map(dbStaffDateAssignmentToApp),
+    dayNotes: (dayNotes || []).map(dbDayNoteToApp),
   }
 }

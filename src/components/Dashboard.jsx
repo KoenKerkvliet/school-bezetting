@@ -6,7 +6,7 @@ import {
 import { nl } from 'date-fns/locale';
 import {
   ChevronLeft, ChevronRight, AlertTriangle, CheckCircle,
-  UserX, Users, Clock, X, Plus, UserPlus, Printer,
+  UserX, Users, Clock, X, Plus, UserPlus, Printer, StickyNote, Pencil, Trash2,
 } from 'lucide-react';
 import { useApp, DAYS, DAY_LABELS_NL, generateId } from '../context/AppContext.jsx';
 
@@ -52,7 +52,7 @@ function workingHoursCover(daySchedule, requiredStart, requiredEnd) {
 
 export default function Dashboard({ initialDate, onInitialDateUsed }) {
   const { state, dispatch } = useApp();
-  const { groups, units, staff, absences, timeAbsences } = state;
+  const { groups, units, staff, absences, timeAbsences, dayNotes } = state;
 
   // Initialize currentWeek from localStorage or use today
   const [currentWeek, setCurrentWeek] = useState(() => {
@@ -215,6 +215,12 @@ export default function Dashboard({ initialDate, onInitialDateUsed }) {
   function getAmbulantStaff(date) {
     const dayKey = getDayKey(date);
     return staff.filter(s => !isAbsent(s.id, date) && s.schedule?.[dayKey]?.type === 'ambulant');
+  }
+
+  // ── Day notes helpers ───────────────────────────────────────────────────
+  function getDayNote(date) {
+    const dateStr = formatLocalDate(date);
+    return (dayNotes || []).find(n => n.date === dateStr);
   }
 
   // ── PDF generation ──────────────────────────────────────────────────────
@@ -648,6 +654,9 @@ export default function Dashboard({ initialDate, onInitialDateUsed }) {
                   </div>
                 )}
 
+                {/* Day note */}
+                <DayNoteInline date={date} note={getDayNote(date)} dispatch={dispatch} />
+
               </div>
             );
           })}
@@ -669,6 +678,7 @@ export default function Dashboard({ initialDate, onInitialDateUsed }) {
           getAvailableStaff={getAvailableStaff}
           getAmbulantStaff={getAmbulantStaff}
           isGroupUnmanned={isGroupUnmanned}
+          dayNote={getDayNote(selectedDay)}
           dispatch={dispatch}
           onClose={() => setSelectedDay(null)}
         />
@@ -700,7 +710,7 @@ export default function Dashboard({ initialDate, onInitialDateUsed }) {
 function DayDetailModal({
   date, groups, units, staff, absences, timeAbsences,
   getGroupStaff, getUnitStaff, getAbsentOnDay, getAvailableStaff, getAmbulantStaff,
-  isGroupUnmanned, dispatch, onClose,
+  isGroupUnmanned, dayNote, dispatch, onClose,
 }) {
   const [staffAction, setStaffAction] = useState(null);
   const absentStaff = getAbsentOnDay(date);
@@ -912,6 +922,9 @@ function DayDetailModal({
                 </div>
               </div>
             )}
+
+            {/* Day note */}
+            <DayNoteSection date={date} note={dayNote} dispatch={dispatch} />
           </div>
         </div>
       </div>
@@ -1590,6 +1603,188 @@ function StaffActionModal({ staff, date, allAbsences, allTimeAbsences, dispatch,
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+// ── Day Note inline (calendar column) ─────────────────────────────────────
+
+function DayNoteInline({ date, note, dispatch }) {
+  const [editing, setEditing] = useState(false);
+  const [text, setText] = useState(note?.text || '');
+
+  useEffect(() => {
+    setText(note?.text || '');
+  }, [note?.text]);
+
+  const handleSave = () => {
+    const trimmed = text.trim();
+    if (trimmed) {
+      dispatch({
+        type: 'SET_DAY_NOTE',
+        payload: {
+          id: note?.id || generateId(),
+          date: formatLocalDate(date),
+          text: trimmed,
+        },
+      });
+    } else if (note?.id) {
+      dispatch({ type: 'DELETE_DAY_NOTE', payload: note.id });
+    }
+    setEditing(false);
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSave();
+    }
+    if (e.key === 'Escape') {
+      setText(note?.text || '');
+      setEditing(false);
+    }
+  };
+
+  if (editing) {
+    return (
+      <div className="px-2 pb-2 pt-1 border-t border-gray-100">
+        <textarea
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onBlur={handleSave}
+          onKeyDown={handleKeyDown}
+          autoFocus
+          rows={2}
+          className="w-full text-xs px-2 py-1.5 border border-yellow-300 rounded-lg focus:ring-1 focus:ring-yellow-400 focus:border-yellow-400 resize-none bg-yellow-50"
+          placeholder="Notitie..."
+        />
+      </div>
+    );
+  }
+
+  if (note?.text) {
+    return (
+      <div
+        className="px-2 pb-2 pt-1 border-t border-gray-100 cursor-pointer group"
+        onClick={(e) => { e.stopPropagation(); setEditing(true); }}
+      >
+        <div className="flex items-start gap-1">
+          <StickyNote className="w-3 h-3 text-yellow-500 flex-shrink-0 mt-0.5" />
+          <p className="text-xs text-gray-600 line-clamp-2 flex-1">{note.text}</p>
+          <Pencil className="w-2.5 h-2.5 text-gray-300 group-hover:text-gray-500 flex-shrink-0 mt-0.5 transition-colors" />
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="px-2 pb-1.5 pt-1 border-t border-gray-100">
+      <button
+        onClick={(e) => { e.stopPropagation(); setEditing(true); }}
+        className="flex items-center gap-1 text-xs text-gray-300 hover:text-gray-500 transition-colors"
+      >
+        <StickyNote className="w-3 h-3" />
+        <span>Notitie</span>
+      </button>
+    </div>
+  );
+}
+
+// ── Day Note section (Day Detail Modal) ───────────────────────────────────
+
+function DayNoteSection({ date, note, dispatch }) {
+  const [editing, setEditing] = useState(false);
+  const [text, setText] = useState(note?.text || '');
+
+  useEffect(() => {
+    setText(note?.text || '');
+  }, [note?.text]);
+
+  const handleSave = () => {
+    const trimmed = text.trim();
+    if (trimmed) {
+      dispatch({
+        type: 'SET_DAY_NOTE',
+        payload: {
+          id: note?.id || generateId(),
+          date: formatLocalDate(date),
+          text: trimmed,
+        },
+      });
+    } else if (note?.id) {
+      dispatch({ type: 'DELETE_DAY_NOTE', payload: note.id });
+    }
+    setEditing(false);
+  };
+
+  const handleDelete = () => {
+    if (note?.id) {
+      dispatch({ type: 'DELETE_DAY_NOTE', payload: note.id });
+    }
+    setText('');
+    setEditing(false);
+  };
+
+  return (
+    <div className="pt-3 border-t border-gray-100">
+      <h3 className="font-bold text-gray-700 text-sm mb-2 pb-1 border-b border-gray-200 flex items-center gap-1.5">
+        <StickyNote className="w-4 h-4 text-yellow-500" />
+        Notitie
+      </h3>
+
+      {editing ? (
+        <div>
+          <textarea
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            autoFocus
+            rows={3}
+            className="w-full text-sm px-3 py-2 border border-yellow-300 rounded-lg focus:ring-2 focus:ring-yellow-400 focus:border-yellow-400 resize-none bg-yellow-50"
+            placeholder="Schrijf een notitie voor deze dag..."
+          />
+          <div className="flex gap-2 mt-2">
+            <button
+              onClick={handleSave}
+              className="text-xs px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              Opslaan
+            </button>
+            <button
+              onClick={() => { setText(note?.text || ''); setEditing(false); }}
+              className="text-xs px-3 py-1.5 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+            >
+              Annuleren
+            </button>
+            {note?.id && (
+              <button
+                onClick={handleDelete}
+                className="text-xs px-3 py-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors ml-auto flex items-center gap-1"
+              >
+                <Trash2 className="w-3 h-3" />
+                Verwijderen
+              </button>
+            )}
+          </div>
+        </div>
+      ) : note?.text ? (
+        <div
+          className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 cursor-pointer hover:bg-yellow-100 transition-colors group"
+          onClick={() => setEditing(true)}
+        >
+          <div className="flex items-start gap-2">
+            <p className="text-sm text-gray-700 whitespace-pre-wrap flex-1">{note.text}</p>
+            <Pencil className="w-3.5 h-3.5 text-gray-300 group-hover:text-gray-500 flex-shrink-0 mt-0.5 transition-colors" />
+          </div>
+        </div>
+      ) : (
+        <button
+          onClick={() => setEditing(true)}
+          className="w-full flex items-center justify-center gap-2 py-3 border-2 border-dashed border-gray-200 rounded-lg text-sm text-gray-400 hover:text-gray-600 hover:border-gray-300 transition-colors"
+        >
+          <Plus className="w-4 h-4" />
+          Notitie toevoegen
+        </button>
+      )}
     </div>
   );
 }

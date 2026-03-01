@@ -4,7 +4,7 @@ import { supabase } from '../services/supabaseClient';
 import { useAuth } from './AuthContext';
 import {
   appGroupToDb, appUnitToDb, appStaffToDb, appStaffToScheduleRows,
-  appAbsenceToDb, appTimeAbsenceToDb, appStaffDateAssignmentToDb,
+  appAbsenceToDb, appTimeAbsenceToDb, appStaffDateAssignmentToDb, appDayNoteToDb,
 } from '../services/dataMapper';
 import { logAuditAction } from '../services/userService';
 
@@ -18,6 +18,7 @@ const emptyState = {
   absences: [],
   timeAbsences: [],
   staffDateAssignments: [], // Date-specific staff assignments (replacements, overrides)
+  dayNotes: [], // Notes per day { id, date, text }
 };
 
 function reducer(state, action) {
@@ -82,6 +83,22 @@ function reducer(state, action) {
         ),
       };
 
+    case 'SET_DAY_NOTE': {
+      // Upsert: replace existing note for same date, or add new
+      const existing = (state.dayNotes || []).find(n => n.date === action.payload.date);
+      if (existing) {
+        return {
+          ...state,
+          dayNotes: state.dayNotes.map(n =>
+            n.date === action.payload.date ? { ...n, text: action.payload.text } : n
+          ),
+        };
+      }
+      return { ...state, dayNotes: [...(state.dayNotes || []), action.payload] };
+    }
+    case 'DELETE_DAY_NOTE':
+      return { ...state, dayNotes: (state.dayNotes || []).filter(n => n.id !== action.payload) };
+
     default:
       return state;
   }
@@ -126,6 +143,7 @@ export function AppProvider({ children }) {
                 absences: data.absences || [],
                 timeAbsences: data.timeAbsences || [],
                 staffDateAssignments: data.staffDateAssignments || [],
+                dayNotes: data.dayNotes || [],
               }
             });
             console.log('[AppContext] Loaded from Supabase:', data.groups?.length, 'groups,', data.staff?.length, 'staff');
@@ -397,6 +415,28 @@ async function writeToSupabase(orgId, action, userId) {
         .eq('organization_id', orgId);
       if (error) throw error;
       audit('assignment', null, { staffId: p.staffId, date: p.date });
+      return;
+    }
+
+    // ── Day Notes ──
+    case 'SET_DAY_NOTE': {
+      const row = appDayNoteToDb(p, orgId);
+      // Upsert: try update first, then insert
+      const { data: existing } = await supabase.from('day_notes')
+        .select('id').eq('date', row.date).eq('organization_id', orgId).maybeSingle();
+      if (existing) {
+        const { error } = await supabase.from('day_notes')
+          .update({ text: row.text }).eq('id', existing.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from('day_notes').insert([row]);
+        if (error) throw error;
+      }
+      return;
+    }
+    case 'DELETE_DAY_NOTE': {
+      const { error } = await supabase.from('day_notes').delete().eq('id', p);
+      if (error) throw error;
       return;
     }
 

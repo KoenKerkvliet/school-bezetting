@@ -234,3 +234,22 @@ export function appStaffDateAssignmentToDb(app, orgId) {
     organization_id: orgId,
   }
 }
+
+// ── Day Notes ────────────────────────────────────────────────────────
+
+export function dbDayNoteToApp(db) {
+  return {
+    id: db.id,
+    date: db.date,
+    text: db.text,
+  }
+}
+
+export function appDayNoteToDb(app, orgId) {
+  return {
+    id: app.id,
+    date: formatDateForDb(app.date),
+    text: app.text,
+    organization_id: orgId,
+  }
+}
