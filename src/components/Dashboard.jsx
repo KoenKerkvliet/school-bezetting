@@ -603,7 +603,7 @@ export default function Dashboard({ initialDate, onInitialDateUsed }) {
                     <div>
                       <div className={`font-semibold text-sm ${today ? 'text-white' : 'text-gray-800'} flex items-center gap-1`}>
                         {DAY_LABELS_NL[i]}
-                        {getDayNote(date) && <StickyNote className={`w-3.5 h-3.5 ${today ? 'text-yellow-300' : 'text-yellow-500'}`} />}
+                        {getDayNote(date) && <span title={getDayNote(date).note}><StickyNote className={`w-3.5 h-3.5 ${today ? 'text-yellow-300' : 'text-yellow-500'}`} /></span>}
                       </div>
                       <div className={`text-xs ${today ? 'text-blue-100' : 'text-gray-400'}`}>
                         {format(date, 'd MMM', { locale: nl })}
