@@ -448,28 +448,6 @@ function GroupModal({ data, mode, units, gradeLevelSchedules, onSave, onClose })
           </select>
         </div>
 
-        {/* Times */}
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Begintijd</label>
-            <input
-              type="time"
-              value={form.startTime}
-              onChange={e => set('startTime', e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Eindtijd</label>
-            <input
-              type="time"
-              value={form.endTime}
-              onChange={e => set('endTime', e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-        </div>
-
         {/* Days */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">Lesdagen</label>
