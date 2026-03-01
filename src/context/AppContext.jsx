@@ -5,6 +5,7 @@ import { useAuth } from './AuthContext';
 import {
   appGroupToDb, appUnitToDb, appStaffToDb, appStaffToScheduleRows,
   appAbsenceToDb, appTimeAbsenceToDb, appStaffDateAssignmentToDb, appUnitOverrideToDb, appDayNoteToDb,
+  appGradeLevelScheduleToDb,
 } from '../services/dataMapper';
 import { logAuditAction } from '../services/userService';
 
@@ -162,9 +163,7 @@ export function AppProvider({ children }) {
           const hasData = (data.groups?.length > 0 || data.staff?.length > 0);
 
           if (hasData) {
-            // Grade level schedules come from localStorage (not Supabase yet)
-            const savedLocal = localStorage.getItem('schoolPlanning');
-            const localGLS = savedLocal ? (JSON.parse(savedLocal).gradeLevelSchedules || []) : [];
+            const glsFromDb = data.gradeLevelSchedules || [];
 
             dispatch({
               type: 'SET_INITIAL_STATE',
@@ -177,7 +176,7 @@ export function AppProvider({ children }) {
                 staffDateAssignments: data.staffDateAssignments || [],
                 unitOverrides: data.unitOverrides || [],
                 dayNotes: data.dayNotes || [],
-                gradeLevelSchedules: localGLS.length > 0 ? localGLS : DEFAULT_GRADE_LEVEL_SCHEDULES,
+                gradeLevelSchedules: glsFromDb.length > 0 ? glsFromDb : DEFAULT_GRADE_LEVEL_SCHEDULES,
               }
             });
             console.log('[AppContext] Loaded from Supabase:', data.groups?.length, 'groups,', data.staff?.length, 'staff');
@@ -508,10 +507,23 @@ async function writeToSupabase(orgId, action, userId) {
       return;
     }
 
-    case 'SET_GRADE_LEVEL_SCHEDULES':
-      // Grade level schedules are stored in localStorage only (Supabase table not yet created)
-      console.log('[Sync] Grade level schedules saved to localStorage (no Supabase sync yet)');
+    case 'SET_GRADE_LEVEL_SCHEDULES': {
+      // Upsert all grade level schedules (delete + re-insert for clean state)
+      const rows = p.map(gl => appGradeLevelScheduleToDb(gl, orgId));
+      // Delete existing for this org, then insert fresh
+      const { error: delErr } = await supabase
+        .from('grade_level_schedules')
+        .delete()
+        .eq('organization_id', orgId);
+      if (delErr) throw delErr;
+      if (rows.length > 0) {
+        const { error: insErr } = await supabase
+          .from('grade_level_schedules')
+          .insert(rows);
+        if (insErr) throw insErr;
+      }
       return;
+    }
 
     default:
       console.warn('[Sync] Unknown action type:', action.type);

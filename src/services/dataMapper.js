@@ -21,6 +21,8 @@
  *
  * time_absences: id, staff_id, start_date, end_date, start_time, end_time, reason,
  *                organization_id, created_at
+ *
+ * grade_level_schedules: id, grade_level (int), schedule (JSONB), organization_id, created_at, updated_at
  */
 
 // ── Helpers ────────────────────────────────────────────────────────────
@@ -273,6 +275,25 @@ export function appDayNoteToDb(app, orgId) {
     id: app.id,
     date: formatDateForDb(app.date),
     text: app.text,
+    organization_id: orgId,
+  }
+}
+
+// ── Grade Level Schedules ─────────────────────────────────────────────
+
+export function dbGradeLevelScheduleToApp(db) {
+  return {
+    id: db.id,
+    gradeLevel: db.grade_level,
+    schedule: db.schedule || {},
+  }
+}
+
+export function appGradeLevelScheduleToDb(app, orgId) {
+  return {
+    id: app.id,
+    grade_level: app.gradeLevel,
+    schedule: app.schedule,
     organization_id: orgId,
   }
 }

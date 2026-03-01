@@ -8,6 +8,7 @@ import {
   dbStaffDateAssignmentToApp,
   dbUnitOverrideToApp,
   dbDayNoteToApp,
+  dbGradeLevelScheduleToApp,
 } from './dataMapper'
 
 // ============ LOAD ALL DATA (with mapping) ============
@@ -23,6 +24,7 @@ export async function loadAllData(organizationId) {
     { data: staffDateAssignments, error: sdaErr },
     { data: unitOverrides, error: uoErr },
     { data: dayNotes, error: dnErr },
+    { data: gradeLevelSchedules, error: glsErr },
   ] = await Promise.all([
     supabase.from('groups').select('*').eq('organization_id', organizationId),
     supabase.from('units').select('*').eq('organization_id', organizationId),
@@ -33,6 +35,7 @@ export async function loadAllData(organizationId) {
     supabase.from('staff_date_assignments').select('*').eq('organization_id', organizationId),
     supabase.from('staff_unit_overrides').select('*').eq('organization_id', organizationId),
     supabase.from('day_notes').select('*').eq('organization_id', organizationId),
+    supabase.from('grade_level_schedules').select('*').eq('organization_id', organizationId),
   ])
 
   // Log any errors for debugging
@@ -45,6 +48,7 @@ export async function loadAllData(organizationId) {
   if (sdaErr) console.warn('[DB] staff_date_assignments error:', sdaErr.message)
   if (uoErr) console.warn('[DB] staff_unit_overrides error:', uoErr.message)
   if (dnErr) console.warn('[DB] day_notes error:', dnErr.message)
+  if (glsErr) console.warn('[DB] grade_level_schedules error:', glsErr.message)
 
   // Map from DB format → App format
   const scheduleRows = schedules || []
@@ -58,5 +62,6 @@ export async function loadAllData(organizationId) {
     staffDateAssignments: (staffDateAssignments || []).map(dbStaffDateAssignmentToApp),
     unitOverrides: (unitOverrides || []).map(dbUnitOverrideToApp),
     dayNotes: (dayNotes || []).map(dbDayNoteToApp),
+    gradeLevelSchedules: (gradeLevelSchedules || []).map(dbGradeLevelScheduleToApp),
   }
 }
