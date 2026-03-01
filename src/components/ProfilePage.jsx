@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { User, Mail, Shield, Building2, Lock, AlertTriangle, X } from 'lucide-react';
+import { User, Mail, Shield, Building2, Lock, AlertTriangle, X, Pencil, Check } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { getOrganization } from '../services/organizationService';
 import { updatePasswordWithToken } from '../services/authService';
-import { deleteOwnAccount } from '../services/userService';
+import { deleteOwnAccount, updateUserName } from '../services/userService';
 
 export default function ProfilePage() {
   const { user, role, userData, organizationId, logout } = useAuth();
@@ -15,6 +15,14 @@ export default function ProfilePage() {
   const [passwordLoading, setPasswordLoading] = useState(false);
   const [passwordSuccess, setPasswordSuccess] = useState('');
   const [passwordError, setPasswordError] = useState('');
+
+  // Name edit state
+  const [editingName, setEditingName] = useState(false);
+  const [editFirstName, setEditFirstName] = useState('');
+  const [editLastName, setEditLastName] = useState('');
+  const [nameLoading, setNameLoading] = useState(false);
+  const [nameError, setNameError] = useState('');
+  const [nameSuccess, setNameSuccess] = useState('');
 
   // Delete account state
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -32,6 +40,40 @@ export default function ProfilePage() {
       .then(org => setSchoolName(org.name))
       .catch(err => console.error('Error loading organization:', err));
   }, [organizationId]);
+
+  // Handle name edit
+  const startEditingName = () => {
+    setEditFirstName(firstName);
+    setEditLastName(lastName);
+    setEditingName(true);
+    setNameError('');
+    setNameSuccess('');
+  };
+
+  const handleSaveName = async () => {
+    const trimFirst = editFirstName.trim();
+    const trimLast = editLastName.trim();
+
+    if (!trimFirst && !trimLast) {
+      setNameError('Vul minimaal een voornaam of achternaam in');
+      return;
+    }
+
+    try {
+      setNameLoading(true);
+      setNameError('');
+      await updateUserName(user.id, trimFirst, trimLast, organizationId);
+      // Update local auth context
+      await updateProfile({ first_name: trimFirst, last_name: trimLast });
+      setEditingName(false);
+      setNameSuccess('Naam succesvol gewijzigd');
+      setTimeout(() => setNameSuccess(''), 3000);
+    } catch (err) {
+      setNameError(err.message || 'Fout bij het opslaan van de naam');
+    } finally {
+      setNameLoading(false);
+    }
+  };
 
   // Handle password change
   const handlePasswordChange = async (e) => {
@@ -87,11 +129,62 @@ export default function ProfilePage() {
         <div className="bg-white rounded-lg shadow p-6 space-y-6">
           {/* Avatar + Name */}
           <div className="flex items-center gap-4">
-            <div className="w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center">
+            <div className="w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
               <User className="w-8 h-8 text-blue-600" />
             </div>
-            <div>
-              <h2 className="text-xl font-semibold text-gray-800">{fullName}</h2>
+            <div className="flex-1 min-w-0">
+              {editingName ? (
+                <div className="space-y-2">
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={editFirstName}
+                      onChange={(e) => setEditFirstName(e.target.value)}
+                      placeholder="Voornaam"
+                      className="flex-1 px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      disabled={nameLoading}
+                      autoFocus
+                    />
+                    <input
+                      type="text"
+                      value={editLastName}
+                      onChange={(e) => setEditLastName(e.target.value)}
+                      placeholder="Achternaam"
+                      className="flex-1 px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      disabled={nameLoading}
+                    />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={handleSaveName}
+                      disabled={nameLoading}
+                      className="px-3 py-1 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-lg text-sm font-medium transition-colors"
+                    >
+                      {nameLoading ? 'Opslaan...' : 'Opslaan'}
+                    </button>
+                    <button
+                      onClick={() => { setEditingName(false); setNameError(''); }}
+                      disabled={nameLoading}
+                      className="px-3 py-1 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg text-sm font-medium transition-colors"
+                    >
+                      Annuleren
+                    </button>
+                  </div>
+                  {nameError && <p className="text-red-600 text-xs">{nameError}</p>}
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <h2 className="text-xl font-semibold text-gray-800">{fullName}</h2>
+                  <button
+                    onClick={startEditingName}
+                    className="p-1 hover:bg-gray-100 rounded transition-colors text-gray-400 hover:text-gray-600"
+                    title="Naam bewerken"
+                  >
+                    <Pencil className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
+              {nameSuccess && <p className="text-green-600 text-xs mt-1">{nameSuccess}</p>}
               <span className="inline-block mt-1 px-2.5 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700">
                 {role}
               </span>

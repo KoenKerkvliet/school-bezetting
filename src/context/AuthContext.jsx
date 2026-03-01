@@ -46,12 +46,33 @@ async function ensureUserRecord(userId, email, orgId) {
         id: userId,
         email: email,
         organization_id: orgId,
-        role: 'Admin',
+        role: 'Super Admin',
       }], { onConflict: 'id' })
     if (error) console.warn('[Auth] Could not create user record:', error.message)
   } catch (err) {
     console.warn('[Auth] ensureUserRecord failed:', err.message)
   }
+}
+
+// Helper: upgrade sole Admin to Super Admin (one-time migration)
+async function upgradeToSuperAdminIfSoleAdmin(userId, orgId) {
+  try {
+    const { count } = await supabase
+      .from('users')
+      .select('*', { count: 'exact', head: true })
+      .eq('organization_id', orgId)
+    if (count === 1) {
+      await supabase
+        .from('users')
+        .update({ role: 'Super Admin' })
+        .eq('id', userId)
+        .eq('organization_id', orgId)
+      return 'Super Admin'
+    }
+  } catch (err) {
+    console.warn('[Auth] upgradeToSuperAdmin check failed:', err.message)
+  }
+  return null
 }
 
 export function AuthProvider({ children }) {
@@ -69,10 +90,22 @@ export function AuthProvider({ children }) {
   const applyUserData = useCallback(async (ud, authUser) => {
     if (ud) {
       // User record found — use it
+      let effectiveRole = ud.role
+
+      // One-time migration: upgrade sole Admin to Super Admin
+      if (ud.role === 'Admin') {
+        const upgraded = await upgradeToSuperAdminIfSoleAdmin(ud.id, ud.organization_id)
+        if (upgraded) {
+          effectiveRole = upgraded
+          ud.role = upgraded
+          console.log('[Auth] Upgraded sole Admin to Super Admin')
+        }
+      }
+
       setUserData(ud)
-      setRole(ud.role)
+      setRole(effectiveRole)
       setOrganizationId(ud.organization_id)
-      setPermissions(userService.getRolePermissions(ud.role))
+      setPermissions(userService.getRolePermissions(effectiveRole))
       console.log('[Auth] User data loaded, orgId:', ud.organization_id)
     } else if (authUser) {
       // No user record — find org and auto-create record
