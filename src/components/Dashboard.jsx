@@ -499,6 +499,19 @@ export default function Dashboard({ initialDate, onInitialDateUsed }) {
             const availableStaff = getAvailableStaff(date);
             const ambulantStaff = getAmbulantStaff(date);
 
+            // Group available staff by unit for "Ondersteuning" display
+            const staffByUnit = {};
+            const staffNoUnit = [];
+            availableStaff.forEach(s => {
+              const sched = s.schedule?.[dayKey];
+              if (sched?.type === 'unit' && sched?.unitId) {
+                if (!staffByUnit[sched.unitId]) staffByUnit[sched.unitId] = [];
+                staffByUnit[sched.unitId].push(s);
+              } else {
+                staffNoUnit.push(s);
+              }
+            });
+
             return (
               <div
                 key={i}
@@ -632,20 +645,37 @@ export default function Dashboard({ initialDate, onInitialDateUsed }) {
                   })}
                 </div>
 
-                {/* Available staff */}
+                {/* Ondersteuning (unit support) */}
                 {availableStaff.length > 0 && (
                   <div className="px-2 pt-1 pb-1.5 border-t border-gray-100">
-                    <div className={`text-xs font-semibold flex items-center gap-1 mb-1 ${today ? 'text-blue-200' : 'text-blue-500'}`}>
+                    <div className={`text-xs font-semibold flex items-center gap-1 mb-1 ${today ? 'text-blue-200' : 'text-indigo-500'}`}>
                       <Users className="w-3 h-3" />
-                      Beschikbaar
+                      Ondersteuning
                     </div>
-                    <div className="flex flex-wrap gap-1">
-                      {availableStaff.map(s => (
-                        <span key={s.id} className="text-xs bg-blue-50 text-blue-700 border border-blue-100 rounded-full px-1.5 py-0.5">
-                          {s.name.split(' ')[0]}
-                        </span>
-                      ))}
-                    </div>
+                    {units.filter(u => staffByUnit[u.id]).map(u => (
+                      <div key={u.id} className="mb-1">
+                        <div className="text-[10px] font-semibold text-indigo-400 mb-0.5">{u.name}</div>
+                        <div className="flex flex-wrap gap-1">
+                          {staffByUnit[u.id].map(s => (
+                            <span key={s.id} className="text-xs bg-indigo-50 text-indigo-700 border border-indigo-100 rounded-full px-1.5 py-0.5">
+                              {s.name.split(' ')[0]}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                    {staffNoUnit.length > 0 && (
+                      <div className="mb-1">
+                        <div className="text-[10px] font-semibold text-gray-400 mb-0.5">Overig</div>
+                        <div className="flex flex-wrap gap-1">
+                          {staffNoUnit.map(s => (
+                            <span key={s.id} className="text-xs bg-blue-50 text-blue-700 border border-blue-100 rounded-full px-1.5 py-0.5">
+                              {s.name.split(' ')[0]}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -731,6 +761,19 @@ function DayDetailModal({
   const dateLabel = capitalize(format(date, 'EEEE d MMMM yyyy', { locale: nl }));
   const today = isToday(date);
   const dayKey = getDayKey(date);
+
+  // Group available staff by unit for "Ondersteuning" display
+  const staffByUnit = {};
+  const staffNoUnit = [];
+  availableStaff.forEach(s => {
+    const sched = s.schedule?.[dayKey];
+    if (sched?.type === 'unit' && sched?.unitId) {
+      if (!staffByUnit[sched.unitId]) staffByUnit[sched.unitId] = [];
+      staffByUnit[sched.unitId].push(s);
+    } else {
+      staffNoUnit.push(s);
+    }
+  });
 
   const ungroupedGroups = groups.filter(g => !g.unitId || !units.find(u => u.id === g.unitId));
 
@@ -882,19 +925,38 @@ function DayDetailModal({
               </div>
             )}
 
-            {/* Available staff */}
+            {/* Ondersteuning (unit support) */}
             {availableStaff.length > 0 && (
               <div className="pt-2 border-t border-gray-100">
                 <h3 className="font-bold text-gray-700 text-sm mb-2 pb-1 border-b border-gray-200 flex items-center gap-1.5">
-                  <Users className="w-4 h-4 text-blue-500" />
-                  Beschikbaar ({availableStaff.length})
+                  <Users className="w-4 h-4 text-indigo-500" />
+                  Ondersteuning ({availableStaff.length})
                 </h3>
-                <div className="flex flex-wrap gap-1.5">
-                  {availableStaff.map(s => (
-                    <span key={s.id} className="text-xs bg-blue-50 text-blue-700 border border-blue-200 rounded-full px-2.5 py-1 font-medium">
-                      {s.name}
-                    </span>
+                <div className="space-y-2">
+                  {units.filter(u => staffByUnit[u.id]).map(u => (
+                    <div key={u.id}>
+                      <div className="text-xs font-semibold text-indigo-500 mb-1">{u.name}</div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {staffByUnit[u.id].map(s => (
+                          <span key={s.id} className="text-xs bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-full px-2.5 py-1 font-medium">
+                            {s.name}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
                   ))}
+                  {staffNoUnit.length > 0 && (
+                    <div>
+                      <div className="text-xs font-semibold text-gray-400 mb-1">Overig</div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {staffNoUnit.map(s => (
+                          <span key={s.id} className="text-xs bg-blue-50 text-blue-700 border border-blue-200 rounded-full px-2.5 py-1 font-medium">
+                            {s.name}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
