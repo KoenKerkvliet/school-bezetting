@@ -6,7 +6,7 @@ import { updatePasswordWithToken } from '../services/authService';
 import { deleteOwnAccount, updateUserName } from '../services/userService';
 
 export default function ProfilePage() {
-  const { user, role, userData, organizationId, logout } = useAuth();
+  const { user, role, userData, organizationId, logout, updateProfile } = useAuth();
   const [schoolName, setSchoolName] = useState(null);
 
   // Password change state
