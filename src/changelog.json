@@ -1,82 +1,62 @@
 [
   {
-    "version": "1.4.0",
+    "version": "1.3",
     "date": "2026-03-01",
-    "type": "minor",
     "changes": [
-      "Instellingen is nu een volwaardige pagina (geen flyout meer)",
-      "Lestijden per leerjaar: stel standaardtijden in per leerjaar (1–8) per dag",
-      "Groepen koppelen aan een leerjaar: lestijden worden automatisch overgenomen",
-      "Begin- en eindtijd verwijderd uit groep-formulier (komt nu uit instellingen)",
-      "Nieuwe functies: MT en Conciërge toegevoegd",
-      "Standaard werktijden 08:00–17:00 bij werkschema",
-      "Sidebar: Collega's boven Groepen geplaatst, Logboek verplaatst",
-      "Menu-overflow fix bij laatste collega op de pagina",
-      "Directie, MT, IB en Conciërge samengevoegd in MT & Staf sectie",
-      "Logo als favicon en in de sidebar"
+      { "text": "Vakanties & vrije dagen: vakantie, feestdag, halve dag, studiedag en studiemiddag beheren", "type": "new" },
+      { "text": "Statistiekenpagina met afwezigheidsoverzichten, maandgrafiek en per-collega detail", "type": "new" },
+      { "text": "Statistieken in-/uitschakelen per school via Instellingen (Super Admin)", "type": "new" },
+      { "text": "Mobiele responsiveness: hamburger-menu, responsive grids en layouts", "type": "new" },
+      { "text": "Instellingen opgedeeld in tabbladen: Lestijden, Vakanties & vrije dagen, Beheer", "type": "improvement" },
+      { "text": "Tooltip met notitietekst bij hover op dagnotitie-icoon", "type": "improvement" },
+      { "text": "Naam bewerken in profielpagina", "type": "improvement" },
+      { "text": "Versienummer verplaatst van sidebar naar footer", "type": "improvement" },
+      { "text": "Status badge verborgen voor eigen account in gebruikerslijst", "type": "improvement" }
     ]
   },
   {
-    "version": "1.3.0",
-    "date": "2026-03-01",
-    "type": "minor",
-    "changes": [
-      "Nieuw rollensysteem: Super Admin, Admin, Planner en Viewer",
-      "Super Admin: volledige controle over alle scholen inclusief scholenbeheer",
-      "Admin: volledige controle binnen eigen school, kan gebruikers beheren",
-      "Planner: planning, vervangers, afwezigheden, notities en PDF — geen collega/groep CRUD",
-      "Viewer: alleen-lezen toegang met PDF export",
-      "Dashboard acties, collega's pagina en afwezigheidspagina afgeschermd per rol",
-      "Unit-verplaatsing: klik op een collega in Ondersteuning om deze voor één dag naar een andere unit te verplaatsen",
-      "Verplaatste collega's worden gemarkeerd met ↪ en amber kleur",
-      "Ondersteuning gegroepeerd per unit in kalender en dagdetail",
-      "Dagnotities: voeg notities toe per dag in weekkalender en PDF afdruk",
-      "Changelog systeem met automatisch versienummer in sidebar"
-    ]
-  },
-  {
-    "version": "1.2.0",
+    "version": "1.2",
     "date": "2026-02-28",
-    "type": "minor",
     "changes": [
-      "Instellingen-menu opent nu als flyout rechts van de sidebar",
-      "Profiel: wachtwoord wijzigen en gevarenzone met account verwijderen",
-      "Admin: gebruiker detail pagina met naam bewerken, rol/school wijzigen, wachtwoord resetten",
-      "Admin: archiveren en verwijderen per gebruiker met bevestiging",
-      "Versienummer toegevoegd onderaan de sidebar met link naar changelog",
-      "PDF weekoverzicht uitgebreid met ondersteuning per unit",
-      "\"Onderwijs Ondersteuner\" hernoemd naar \"Onderwijsondersteuner\""
+      { "text": "Instellingen als volwaardige pagina (geen flyout meer)", "type": "new" },
+      { "text": "Lestijden per leerjaar: standaardtijden instellen per leerjaar (1–8) per dag", "type": "new" },
+      { "text": "Profiel: wachtwoord wijzigen en gevarenzone met account verwijderen", "type": "new" },
+      { "text": "Admin: gebruiker detailpagina met naam bewerken, rol/school wijzigen en wachtwoord resetten", "type": "new" },
+      { "text": "Groepen koppelen aan een leerjaar: lestijden worden automatisch overgenomen", "type": "improvement" },
+      { "text": "PDF weekoverzicht uitgebreid met ondersteuning per unit", "type": "improvement" },
+      { "text": "Directie, MT, IB en Conciërge samengevoegd in MT & Staf sectie", "type": "improvement" },
+      { "text": "Logo als favicon en in de sidebar", "type": "improvement" }
     ]
   },
   {
-    "version": "1.1.0",
+    "version": "1.1",
     "date": "2026-02-27",
-    "type": "minor",
     "changes": [
-      "Multi-school/organisatie systeem toegevoegd",
-      "Gebruikersbeheer via Supabase Edge Functions (server-side)",
-      "Uitnodigingsmail bij aanmaken nieuwe gebruiker via Emailit",
-      "Test email pagina toegevoegd onder instellingen",
-      "Gebruiker volledig verwijderen uit Auth + database (email herbruikbaar)",
-      "Logboek pagina met audit logging",
-      "Laatste admin van een school kan niet verwijderd worden"
+      { "text": "Multi-school/organisatie systeem", "type": "new" },
+      { "text": "Gebruikersbeheer via Supabase Edge Functions (server-side)", "type": "new" },
+      { "text": "Uitnodigingsmail bij aanmaken nieuwe gebruiker via Emailit", "type": "new" },
+      { "text": "Logboek pagina met audit logging", "type": "new" },
+      { "text": "Rollensysteem: Super Admin, Admin, Planner en Viewer", "type": "new" },
+      { "text": "Unit-verplaatsing: collega voor één dag naar andere unit verplaatsen", "type": "new" },
+      { "text": "Dagnotities per dag in weekkalender en PDF afdruk", "type": "new" },
+      { "text": "Test email pagina onder instellingen", "type": "improvement" },
+      { "text": "Changelog systeem met versienummer", "type": "improvement" }
     ]
   },
   {
-    "version": "1.0.0",
-    "date": "2026-02-25",
-    "type": "major",
+    "version": "1.0",
+    "date": "2026-02-26",
     "changes": [
-      "Weekoverzicht dashboard met 5-koloms weergave (ma-vr)",
-      "Groepen- en units beheer met pauzetijden en kleuren",
-      "Medewerkersbeheer met weekrooster per dag",
-      "Afwezigheidssysteem met redenen en tijdgebonden afwezigheid",
-      "Vervangerssysteem met tijdslot-specifieke toewijzingen",
-      "PDF/print export van weekoverzicht",
-      "Dag-detail modal met volledige bezettingsinfo",
-      "Kleurgecodeerde groepskaarten (groen/rood/oranje)",
-      "Sidebar navigatie met profiel en uitloggen",
-      "Supabase authenticatie en data synchronisatie"
+      { "text": "Weekoverzicht dashboard met 5-koloms weergave (ma–vr)", "type": "new" },
+      { "text": "Groepen- en units beheer met pauzetijden en kleuren", "type": "new" },
+      { "text": "Medewerkersbeheer met weekrooster per dag", "type": "new" },
+      { "text": "Afwezigheidssysteem met redenen en tijdgebonden afwezigheid", "type": "new" },
+      { "text": "Vervangerssysteem met tijdslot-specifieke toewijzingen", "type": "new" },
+      { "text": "PDF/print export van weekoverzicht", "type": "new" },
+      { "text": "Dag-detail panel met volledige bezettingsinfo", "type": "new" },
+      { "text": "Kleurgecodeerde groepskaarten (groen/rood/oranje)", "type": "new" },
+      { "text": "Sidebar navigatie met profiel en uitloggen", "type": "new" },
+      { "text": "Supabase authenticatie en data synchronisatie", "type": "new" }
     ]
   }
 ]
