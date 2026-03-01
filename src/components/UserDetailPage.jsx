@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowLeft, User, Shield, Building2, Lock, AlertTriangle, X, Archive, Trash2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { isSuperAdmin, getAssignableRoles } from '../utils/roles';
 import * as userService from '../services/userService';
 import * as organizationService from '../services/organizationService';
 import { resetPassword } from '../services/authService';
 
 export default function UserDetailPage({ userId, onBack }) {
-  const { organizationId, user: currentUser } = useAuth();
+  const { organizationId, user: currentUser, role: currentUserRole } = useAuth();
   const [userDetail, setUserDetail] = useState(null);
   const [schools, setSchools] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -38,7 +39,7 @@ export default function UserDetailPage({ userId, onBack }) {
   // Archive state
   const [archiveLoading, setArchiveLoading] = useState(false);
 
-  const roles = ['Admin', 'Editor', 'Viewer'];
+  const roles = getAssignableRoles(currentUserRole);
 
   // Load user and schools
   useEffect(() => {
@@ -278,33 +279,35 @@ export default function UserDetailPage({ userId, onBack }) {
           </div>
         </div>
 
-        {/* School Section */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <Building2 className="w-5 h-5 text-gray-700" />
-            <h3 className="text-lg font-semibold text-gray-800">School</h3>
-          </div>
-          <select
-            value={selectedSchool}
-            onChange={(e) => setSelectedSchool(e.target.value)}
-            className="w-full md:w-64 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            disabled={schoolLoading}
-          >
-            {schools.map((s) => (
-              <option key={s.id} value={s.id}>{s.name}</option>
-            ))}
-          </select>
-          <div className="flex items-center gap-3 mt-4">
-            <button
-              onClick={handleSchoolSave}
-              disabled={schoolLoading || selectedSchool === userDetail.organization_id}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-lg font-medium transition-colors"
+        {/* School Section — only Super Admin can change school */}
+        {isSuperAdmin(currentUserRole) && (
+          <div className="bg-white rounded-lg shadow p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <Building2 className="w-5 h-5 text-gray-700" />
+              <h3 className="text-lg font-semibold text-gray-800">School</h3>
+            </div>
+            <select
+              value={selectedSchool}
+              onChange={(e) => setSelectedSchool(e.target.value)}
+              className="w-full md:w-64 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              disabled={schoolLoading}
             >
-              {schoolLoading ? 'Bezig...' : 'School opslaan'}
-            </button>
-            {schoolSuccess && <span className="text-green-600 text-sm font-medium">{schoolSuccess}</span>}
+              {schools.map((s) => (
+                <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+            </select>
+            <div className="flex items-center gap-3 mt-4">
+              <button
+                onClick={handleSchoolSave}
+                disabled={schoolLoading || selectedSchool === userDetail.organization_id}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-lg font-medium transition-colors"
+              >
+                {schoolLoading ? 'Bezig...' : 'School opslaan'}
+              </button>
+              {schoolSuccess && <span className="text-green-600 text-sm font-medium">{schoolSuccess}</span>}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Password Reset Section */}
         <div className="bg-white rounded-lg shadow p-6">

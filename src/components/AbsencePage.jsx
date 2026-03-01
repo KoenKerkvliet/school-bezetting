@@ -3,10 +3,14 @@ import { format, parseISO } from 'date-fns';
 import { nl } from 'date-fns/locale';
 import { Clock, AlertCircle, Trash2, Calendar } from 'lucide-react';
 import { useApp } from '../context/AppContext';
+import { useAuth } from '../context/AuthContext';
+import { isPlannerOrAbove } from '../utils/roles';
 
 export default function AbsencePage({ onBack, onNavigateToDay }) {
   const { state, dispatch } = useApp();
   const { absences, timeAbsences, staff } = state;
+  const { role } = useAuth();
+  const canPlan = isPlannerOrAbove(role);
   const [confirmDelete, setConfirmDelete] = useState(null);
 
   // Create a staff map for quick lookup
@@ -127,13 +131,15 @@ export default function AbsencePage({ onBack, onNavigateToDay }) {
                       >
                         <Calendar className="w-4 h-4" />
                       </button>
-                      <button
-                        onClick={() => setConfirmDelete(item)}
-                        className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
-                        title="Verwijderen"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      {canPlan && (
+                        <button
+                          onClick={() => setConfirmDelete(item)}
+                          className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                          title="Verwijderen"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>

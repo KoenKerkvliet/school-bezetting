@@ -9,6 +9,8 @@ import {
   useApp, DAYS, DAY_LABELS_NL, DAY_LABELS_SHORT,
   ROLES, ABSENCE_REASONS, TIME_ABSENCE_REASONS, generateId,
 } from '../context/AppContext.jsx';
+import { useAuth } from '../context/AuthContext.jsx';
+import { isPlannerOrAbove, isAdminOrAbove } from '../utils/roles';
 
 // ── Defaults ───────────────────────────────────────────────────────────────
 
@@ -67,6 +69,9 @@ function scheduleLabel(daySchedule, groups, units) {
 export default function StaffPage() {
   const { state, dispatch } = useApp();
   const { staff, groups, units, absences, timeAbsences } = state;
+  const { role } = useAuth();
+  const canPlan = isPlannerOrAbove(role);
+  const isAdmin = isAdminOrAbove(role);
 
   const [staffModal, setStaffModal] = useState(null);
   const [absenceModal, setAbsenceModal] = useState(null);
@@ -169,13 +174,15 @@ export default function StaffPage() {
             Beheer roosters en uitroosteringen
           </p>
         </div>
-        <button
-          onClick={openAddStaff}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm"
-        >
-          <Plus className="w-4 h-4" />
-          Nieuwe collega
-        </button>
+        {isAdmin && (
+          <button
+            onClick={openAddStaff}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm"
+          >
+            <Plus className="w-4 h-4" />
+            Nieuwe collega
+          </button>
+        )}
       </div>
 
       {/* Staff list */}
@@ -184,12 +191,14 @@ export default function StaffPage() {
           <User className="w-10 h-10 text-gray-300 mx-auto mb-3" />
           <h3 className="font-semibold text-gray-600 mb-1">Nog geen collega's</h3>
           <p className="text-sm text-gray-400 mb-4">Voeg je eerste collega toe.</p>
-          <button
-            onClick={openAddStaff}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
-          >
-            Nieuwe collega
-          </button>
+          {isAdmin && (
+            <button
+              onClick={openAddStaff}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+            >
+              Nieuwe collega
+            </button>
+          )}
         </div>
       ) : (
         <div className="space-y-6">
@@ -297,16 +306,18 @@ export default function StaffPage() {
                           {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                         </button>
                       )}
-                      <StaffMenu
-                        memberId={member.id}
-                        isOpen={isMenuOpen}
-                        onToggle={() => setOpenMenu(isMenuOpen ? null : member.id)}
-                        onClose={() => setOpenMenu(null)}
-                        onAbsence={() => { openAbsenceModal(member.id); setOpenMenu(null); }}
-                        onTimeAbsence={() => { openTimeAbsenceModal(member.id); setOpenMenu(null); }}
-                        onEdit={() => { openEditStaff(member); setOpenMenu(null); }}
-                        onDelete={() => { deleteStaff(member.id); setOpenMenu(null); }}
-                      />
+                      {canPlan && (
+                        <StaffMenu
+                          memberId={member.id}
+                          isOpen={isMenuOpen}
+                          onToggle={() => setOpenMenu(isMenuOpen ? null : member.id)}
+                          onClose={() => setOpenMenu(null)}
+                          onAbsence={() => { openAbsenceModal(member.id); setOpenMenu(null); }}
+                          onTimeAbsence={() => { openTimeAbsenceModal(member.id); setOpenMenu(null); }}
+                          onEdit={isAdmin ? () => { openEditStaff(member); setOpenMenu(null); } : null}
+                          onDelete={isAdmin ? () => { deleteStaff(member.id); setOpenMenu(null); } : null}
+                        />
+                      )}
                     </div>
                   </div>
                 </div>
@@ -338,13 +349,15 @@ export default function StaffPage() {
                                   {a.reason}
                                 </span>
                               </div>
-                              <button
-                                onClick={() => deleteAbsence(a.id)}
-                                className="p-1 text-gray-400 hover:text-red-600 rounded transition-colors"
-                                title="Verwijderen"
-                              >
-                                <X className="w-3.5 h-3.5" />
-                              </button>
+                              {canPlan && (
+                                <button
+                                  onClick={() => deleteAbsence(a.id)}
+                                  className="p-1 text-gray-400 hover:text-red-600 rounded transition-colors"
+                                  title="Verwijderen"
+                                >
+                                  <X className="w-3.5 h-3.5" />
+                                </button>
+                              )}
                             </div>
                           ))}
                         </div>
@@ -372,13 +385,15 @@ export default function StaffPage() {
                                   <span className="text-xs text-orange-600 italic">{ta.reason}</span>
                                 )}
                               </div>
-                              <button
-                                onClick={() => deleteTimeAbsence(ta.id)}
-                                className="p-1 text-gray-400 hover:text-red-600 rounded transition-colors flex-shrink-0"
-                                title="Verwijderen"
-                              >
-                                <X className="w-3.5 h-3.5" />
-                              </button>
+                              {canPlan && (
+                                <button
+                                  onClick={() => deleteTimeAbsence(ta.id)}
+                                  className="p-1 text-gray-400 hover:text-red-600 rounded transition-colors flex-shrink-0"
+                                  title="Verwijderen"
+                                >
+                                  <X className="w-3.5 h-3.5" />
+                                </button>
+                              )}
                             </div>
                           ))}
                         </div>
@@ -481,21 +496,29 @@ function StaffMenu({ memberId, isOpen, onToggle, onClose, onAbsence, onTimeAbsen
               <Clock className="w-4 h-4" />
               Tijdelijk uitroosteren
             </button>
-            <div className="border-t border-gray-100 my-1" />
-            <button
-              onClick={onEdit}
-              className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors"
-            >
-              <Pencil className="w-4 h-4" />
-              Bewerken
-            </button>
-            <button
-              onClick={onDelete}
-              className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
-            >
-              <Trash2 className="w-4 h-4" />
-              Verwijderen
-            </button>
+            {(onEdit || onDelete) && (
+              <>
+                <div className="border-t border-gray-100 my-1" />
+                {onEdit && (
+                  <button
+                    onClick={onEdit}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors"
+                  >
+                    <Pencil className="w-4 h-4" />
+                    Bewerken
+                  </button>
+                )}
+                {onDelete && (
+                  <button
+                    onClick={onDelete}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    Verwijderen
+                  </button>
+                )}
+              </>
+            )}
           </div>
         </>
       )}

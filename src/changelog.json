@@ -1,5 +1,23 @@
 [
   {
+    "version": "1.5.0",
+    "date": "2026-03-01",
+    "type": "minor",
+    "changes": [
+      "Nieuw rollensysteem: Super Admin, Admin, Planner en Viewer",
+      "Super Admin: volledige controle over alle scholen inclusief scholenbeheer",
+      "Admin: volledige controle binnen eigen school, kan gebruikers beheren",
+      "Planner: planning, vervangers, afwezigheden, notities en PDF — geen collega/groep CRUD",
+      "Viewer: alleen-lezen toegang met PDF export",
+      "Instellingen-menu verborgen voor Planner en Viewer",
+      "Dashboard acties (vervanging, notities, unit-verplaatsing) afgeschermd per rol",
+      "Collega's pagina: menu aangepast per rol (Planner: alleen afwezigheden)",
+      "Afwezigheid-pagina: verwijderknop verborgen voor Viewer",
+      "Edge Functions: laatste admin/super admin bescherming verbeterd",
+      "Backward-compatible: bestaande Editor-rol wordt automatisch als Planner behandeld"
+    ]
+  },
+  {
     "version": "1.4.0",
     "date": "2026-03-01",
     "type": "minor",

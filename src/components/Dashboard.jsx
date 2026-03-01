@@ -9,6 +9,8 @@ import {
   UserX, Users, Clock, X, Plus, UserPlus, Printer, StickyNote, Pencil, Trash2,
 } from 'lucide-react';
 import { useApp, DAYS, DAY_LABELS_NL, generateId } from '../context/AppContext.jsx';
+import { useAuth } from '../context/AuthContext.jsx';
+import { isPlannerOrAbove } from '../utils/roles';
 
 function getWeekDates(base) {
   const monday = startOfWeek(base, { weekStartsOn: 1 });
@@ -53,6 +55,8 @@ function workingHoursCover(daySchedule, requiredStart, requiredEnd) {
 export default function Dashboard({ initialDate, onInitialDateUsed }) {
   const { state, dispatch } = useApp();
   const { groups, units, staff, absences, timeAbsences, unitOverrides, dayNotes } = state;
+  const { role } = useAuth();
+  const canPlan = isPlannerOrAbove(role);
 
   // Initialize currentWeek from localStorage or use today
   const [currentWeek, setCurrentWeek] = useState(() => {
@@ -723,7 +727,7 @@ export default function Dashboard({ initialDate, onInitialDateUsed }) {
                             return (
                               <span
                                 key={s.id}
-                                onClick={(e) => {
+                                onClick={canPlan ? (e) => {
                                   e.stopPropagation();
                                   const rect = e.currentTarget.getBoundingClientRect();
                                   setUnitMovePopup({
@@ -733,13 +737,15 @@ export default function Dashboard({ initialDate, onInitialDateUsed }) {
                                     currentUnitId: getEffectiveUnitId(s, date),
                                     rect,
                                   });
-                                }}
-                                className={`text-xs rounded-full px-1.5 py-0.5 cursor-pointer transition-colors hover:bg-indigo-200 ${
+                                } : undefined}
+                                className={`text-xs rounded-full px-1.5 py-0.5 transition-colors ${
+                                  canPlan ? 'cursor-pointer hover:bg-indigo-200' : ''
+                                } ${
                                   hasOverride
                                     ? 'bg-amber-100 text-amber-800 border border-amber-300'
                                     : 'bg-indigo-50 text-indigo-700 border border-indigo-100'
                                 }`}
-                                title={hasOverride ? `${s.name.split(' ')[0]} — verplaatst (klik om te wijzigen)` : `${s.name.split(' ')[0]} — klik om te verplaatsen`}
+                                title={!canPlan ? s.name.split(' ')[0] : hasOverride ? `${s.name.split(' ')[0]} — verplaatst (klik om te wijzigen)` : `${s.name.split(' ')[0]} — klik om te verplaatsen`}
                               >
                                 {hasOverride && '↪ '}{s.name.split(' ')[0]}
                               </span>
@@ -781,7 +787,7 @@ export default function Dashboard({ initialDate, onInitialDateUsed }) {
                 )}
 
                 {/* Day note */}
-                <DayNoteInline date={date} note={getDayNote(date)} dispatch={dispatch} />
+                <DayNoteInline date={date} note={getDayNote(date)} dispatch={dispatch} canPlan={canPlan} />
 
               </div>
             );
@@ -790,7 +796,7 @@ export default function Dashboard({ initialDate, onInitialDateUsed }) {
       </div>
 
       {/* ── Unit move popup ── */}
-      {unitMovePopup && (
+      {canPlan && unitMovePopup && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setUnitMovePopup(null)} />
           <div
@@ -851,6 +857,7 @@ export default function Dashboard({ initialDate, onInitialDateUsed }) {
           dayNote={getDayNote(selectedDay)}
           dispatch={dispatch}
           onClose={() => setSelectedDay(null)}
+          canPlan={canPlan}
         />
       )}
 
@@ -869,6 +876,7 @@ export default function Dashboard({ initialDate, onInitialDateUsed }) {
           staffDateAssignments={state.staffDateAssignments || []}
           dispatch={dispatch}
           onClose={() => setSelectedGroup(null)}
+          canPlan={canPlan}
         />
       )}
     </div>
@@ -881,7 +889,7 @@ function DayDetailModal({
   date, groups, units, staff, absences, timeAbsences,
   getGroupStaff, getUnitStaff, getAbsentOnDay, getAvailableStaff, getAmbulantStaff,
   isGroupUnmanned, getEffectiveUnitId, getUnitOverride, onUnitMove, onUnitMoveReset,
-  dayNote, dispatch, onClose,
+  dayNote, dispatch, onClose, canPlan,
 }) {
   const [staffAction, setStaffAction] = useState(null);
   const [unitMoveTarget, setUnitMoveTarget] = useState(null);
@@ -992,7 +1000,8 @@ function DayDetailModal({
                           date={date}
                           staffList={getGroupStaff(group.id, date)}
                           unmanned={isGroupUnmanned(group.id, date)}
-                          onStaffClick={setStaffAction}
+                          onStaffClick={canPlan ? setStaffAction : undefined}
+                          canPlan={canPlan}
                         />
                       );
                     })}
@@ -1008,8 +1017,8 @@ function DayDetailModal({
                       {unitStaff.map(s => (
                         <div
                           key={s.id}
-                          onClick={() => setStaffAction(s)}
-                          className={`flex items-center gap-2 text-xs py-1 px-1 rounded cursor-pointer transition-colors ${s.absent ? 'text-amber-700 hover:bg-amber-100' : 'text-blue-700 hover:bg-blue-100'}`}
+                          onClick={canPlan ? () => setStaffAction(s) : undefined}
+                          className={`flex items-center gap-2 text-xs py-1 px-1 rounded transition-colors ${canPlan ? 'cursor-pointer' : ''} ${s.absent ? 'text-amber-700' + (canPlan ? ' hover:bg-amber-100' : '') : 'text-blue-700' + (canPlan ? ' hover:bg-blue-100' : '')}`}
                         >
                           {s.absent ? <UserX className="w-3 h-3" /> : <Users className="w-3 h-3" />}
                           <span className={s.absent ? 'line-through' : ''}>{s.name}</span>
@@ -1048,6 +1057,7 @@ function DayDetailModal({
                         date={date}
                         staffList={getGroupStaff(group.id, date)}
                         unmanned={isGroupUnmanned(group.id, date)}
+                        canPlan={canPlan}
                       />
                     );
                   })}
@@ -1061,7 +1071,7 @@ function DayDetailModal({
                 <h3 className="font-bold text-gray-700 text-sm mb-2 pb-1 border-b border-gray-200 flex items-center gap-1.5">
                   <Users className="w-4 h-4 text-indigo-500" />
                   Ondersteuning ({availableStaff.length})
-                  <span className="text-[10px] font-normal text-gray-400 ml-auto">Klik om te verplaatsen</span>
+                  {canPlan && <span className="text-[10px] font-normal text-gray-400 ml-auto">Klik om te verplaatsen</span>}
                 </h3>
                 <div className="space-y-2">
                   {units.filter(u => staffByUnit[u.id]).map(u => (
@@ -1073,18 +1083,18 @@ function DayDetailModal({
                           return (
                             <span
                               key={s.id}
-                              onClick={() => setUnitMoveTarget({
+                              onClick={canPlan ? () => setUnitMoveTarget({
                                 staffId: s.id,
                                 staffName: s.name,
                                 date,
                                 currentUnitId: getEffectiveUnitId(s, date),
-                              })}
-                              className={`text-xs rounded-full px-2.5 py-1 font-medium cursor-pointer transition-colors ${
+                              }) : undefined}
+                              className={`text-xs rounded-full px-2.5 py-1 font-medium transition-colors ${canPlan ? 'cursor-pointer' : ''} ${
                                 hasOverride
-                                  ? 'bg-amber-100 text-amber-800 border border-amber-300 hover:bg-amber-200'
-                                  : 'bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-100'
+                                  ? 'bg-amber-100 text-amber-800 border border-amber-300' + (canPlan ? ' hover:bg-amber-200' : '')
+                                  : 'bg-indigo-50 text-indigo-700 border border-indigo-200' + (canPlan ? ' hover:bg-indigo-100' : '')
                               }`}
-                              title={hasOverride ? 'Verplaatst — klik om te wijzigen' : 'Klik om te verplaatsen'}
+                              title={!canPlan ? s.name : hasOverride ? 'Verplaatst — klik om te wijzigen' : 'Klik om te verplaatsen'}
                             >
                               {hasOverride && '↪ '}{s.name}
                             </span>
@@ -1108,7 +1118,7 @@ function DayDetailModal({
                 </div>
 
                 {/* Unit move popup within modal */}
-                {unitMoveTarget && (
+                {canPlan && unitMoveTarget && (
                   <>
                     <div className="fixed inset-0 z-[60]" onClick={() => setUnitMoveTarget(null)} />
                     <div className="absolute right-0 top-0 z-[70] bg-white shadow-xl rounded-lg border border-gray-200 py-1 min-w-[180px]">
@@ -1186,12 +1196,12 @@ function DayDetailModal({
             )}
 
             {/* Day note */}
-            <DayNoteSection date={date} note={dayNote} dispatch={dispatch} />
+            <DayNoteSection date={date} note={dayNote} dispatch={dispatch} canPlan={canPlan} />
           </div>
         </div>
       </div>
     </div>
-    {staffAction && (
+    {canPlan && staffAction && (
       <StaffActionModal
         staff={staffAction}
         date={date}
@@ -1205,7 +1215,7 @@ function DayDetailModal({
   );
 }
 
-function GroupDetailCard({ group, date, staffList, unmanned, onStaffClick }) {
+function GroupDetailCard({ group, date, staffList, unmanned, onStaffClick, canPlan }) {
   const hasAbsent = staffList.some(s => s.absent);
   const hasTimeAbsent = staffList.some(s => !s.absent && s.timeAbsences?.length > 0);
   const hasReplacement = staffList.some(s => s.isReplacement === true);
@@ -1252,9 +1262,9 @@ function GroupDetailCard({ group, date, staffList, unmanned, onStaffClick }) {
           {staffList.map(s => (
             <div key={s.id}>
               <div
-                onClick={e => { e.stopPropagation(); onStaffClick(s); }}
-                className={`flex items-center gap-2 rounded px-2 py-1 cursor-pointer transition-colors ${
-                  s.absent ? 'bg-amber-100 text-amber-800 hover:bg-amber-200' : 'bg-green-100 text-green-800 hover:bg-green-200'
+                onClick={onStaffClick ? (e => { e.stopPropagation(); onStaffClick(s); }) : undefined}
+                className={`flex items-center gap-2 rounded px-2 py-1 transition-colors ${onStaffClick ? 'cursor-pointer' : ''} ${
+                  s.absent ? 'bg-amber-100 text-amber-800' + (onStaffClick ? ' hover:bg-amber-200' : '') : 'bg-green-100 text-green-800' + (onStaffClick ? ' hover:bg-green-200' : '')
                 }`}
               >
                 {s.absent
@@ -1294,7 +1304,7 @@ function GroupDetailCard({ group, date, staffList, unmanned, onStaffClick }) {
 
 // ── Single group popup ─────────────────────────────────────────────────────
 
-function GroupPopup({ group, date, staffList, allStaff, unitStaff, unit, unmanned, absences, timeAbsences, staffDateAssignments, dispatch, onClose }) {
+function GroupPopup({ group, date, staffList, allStaff, unitStaff, unit, unmanned, absences, timeAbsences, staffDateAssignments, dispatch, onClose, canPlan }) {
   const [staffAction, setStaffAction] = useState(null);
   const [showReplacementMode, setShowReplacementMode] = useState(false);
   const [replacementTimeSlot, setReplacementTimeSlot] = useState(null); // { startTime, endTime } or null for whole-day
@@ -1446,13 +1456,15 @@ function GroupPopup({ group, date, staffList, allStaff, unitStaff, unit, unmanne
             </div>
           </div>
           <div className="flex items-center gap-1">
-            <button
-              onClick={() => setShowReplacementMode(!showReplacementMode)}
-              className="p-1 hover:bg-gray-200 rounded-lg text-gray-600 transition-colors"
-              title="Vervanging regelen"
-            >
-              <UserPlus className="w-4 h-4" />
-            </button>
+            {canPlan && (
+              <button
+                onClick={() => setShowReplacementMode(!showReplacementMode)}
+                className="p-1 hover:bg-gray-200 rounded-lg text-gray-600 transition-colors"
+                title="Vervanging regelen"
+              >
+                <UserPlus className="w-4 h-4" />
+              </button>
+            )}
             <button onClick={onClose} className="p-1 hover:bg-gray-200 rounded-lg text-gray-400 transition-colors">
               <X className="w-4 h-4" />
             </button>
@@ -1493,33 +1505,55 @@ function GroupPopup({ group, date, staffList, allStaff, unitStaff, unit, unmanne
                             : 'bg-gray-50 text-gray-800'
                         }`}
                       >
-                        <button
-                          onClick={e => { e.stopPropagation(); setStaffAction(s); }}
-                          className="flex-1 flex items-center gap-2 cursor-pointer hover:opacity-80"
-                        >
-                          {s.absent
-                            ? <UserX className="w-3.5 h-3.5 flex-shrink-0" />
-                            : <CheckCircle className="w-3.5 h-3.5 text-green-500 flex-shrink-0" />
-                          }
-                          <span className={s.absent ? 'line-through' : ''}>{s.name}</span>
-                          <span className="text-xs text-gray-400 ml-0.5">{s.role}</span>
-                          {s.isReplacement && s.replacementStartTime && (
-                            <span className="ml-1 text-xs px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-700 border border-indigo-200 font-medium flex items-center gap-0.5">
-                              <Clock className="w-2.5 h-2.5" />
-                              {s.replacementStartTime}–{s.replacementEndTime}
-                            </span>
-                          )}
-                          {s.absent && (
-                            <span className="ml-auto text-xs text-amber-600">({s.reason || 'afwezig'})</span>
-                          )}
-                        </button>
-                        <button
-                          onClick={e => { e.stopPropagation(); removeStaffFromGroup(s); }}
-                          className="flex-shrink-0 p-1 rounded hover:bg-white/30 text-current transition-colors"
-                          title="Verwijderen uit groep"
-                        >
-                          <X className="w-4 h-4" />
-                        </button>
+                        {canPlan ? (
+                          <button
+                            onClick={e => { e.stopPropagation(); setStaffAction(s); }}
+                            className="flex-1 flex items-center gap-2 cursor-pointer hover:opacity-80"
+                          >
+                            {s.absent
+                              ? <UserX className="w-3.5 h-3.5 flex-shrink-0" />
+                              : <CheckCircle className="w-3.5 h-3.5 text-green-500 flex-shrink-0" />
+                            }
+                            <span className={s.absent ? 'line-through' : ''}>{s.name}</span>
+                            <span className="text-xs text-gray-400 ml-0.5">{s.role}</span>
+                            {s.isReplacement && s.replacementStartTime && (
+                              <span className="ml-1 text-xs px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-700 border border-indigo-200 font-medium flex items-center gap-0.5">
+                                <Clock className="w-2.5 h-2.5" />
+                                {s.replacementStartTime}–{s.replacementEndTime}
+                              </span>
+                            )}
+                            {s.absent && (
+                              <span className="ml-auto text-xs text-amber-600">({s.reason || 'afwezig'})</span>
+                            )}
+                          </button>
+                        ) : (
+                          <div className="flex-1 flex items-center gap-2">
+                            {s.absent
+                              ? <UserX className="w-3.5 h-3.5 flex-shrink-0" />
+                              : <CheckCircle className="w-3.5 h-3.5 text-green-500 flex-shrink-0" />
+                            }
+                            <span className={s.absent ? 'line-through' : ''}>{s.name}</span>
+                            <span className="text-xs text-gray-400 ml-0.5">{s.role}</span>
+                            {s.isReplacement && s.replacementStartTime && (
+                              <span className="ml-1 text-xs px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-700 border border-indigo-200 font-medium flex items-center gap-0.5">
+                                <Clock className="w-2.5 h-2.5" />
+                                {s.replacementStartTime}–{s.replacementEndTime}
+                              </span>
+                            )}
+                            {s.absent && (
+                              <span className="ml-auto text-xs text-amber-600">({s.reason || 'afwezig'})</span>
+                            )}
+                          </div>
+                        )}
+                        {canPlan && (
+                          <button
+                            onClick={e => { e.stopPropagation(); removeStaffFromGroup(s); }}
+                            className="flex-shrink-0 p-1 rounded hover:bg-white/30 text-current transition-colors"
+                            title="Verwijderen uit groep"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        )}
                       </div>
                       {!s.absent && s.timeAbsences?.length > 0 && (
                         <div className="ml-4 mt-0.5 space-y-0.5">
@@ -1528,6 +1562,7 @@ function GroupPopup({ group, date, staffList, allStaff, unitStaff, unit, unmanne
                               <Clock className="w-3 h-3 flex-shrink-0" />
                               <span className="font-medium">{ta.startTime}–{ta.endTime}</span>
                               {ta.reason && <span className="text-orange-500 truncate">({ta.reason})</span>}
+                              {canPlan && (
                               <button
                                 onClick={e => {
                                   e.stopPropagation();
@@ -1539,6 +1574,7 @@ function GroupPopup({ group, date, staffList, allStaff, unitStaff, unit, unmanne
                               >
                                 <UserPlus className="w-3 h-3" />
                               </button>
+                              )}
                             </div>
                           ))}
                         </div>
@@ -1577,7 +1613,7 @@ function GroupPopup({ group, date, staffList, allStaff, unitStaff, unit, unmanne
             )}
 
             {/* Replacement mode */}
-            {showReplacementMode && (
+            {canPlan && showReplacementMode && (
               <div className="space-y-3">
                 {/* Available staff */}
                 <div>
@@ -1665,7 +1701,7 @@ function GroupPopup({ group, date, staffList, allStaff, unitStaff, unit, unmanne
         </div>
       </div>
     </div>
-    {staffAction && (
+    {canPlan && staffAction && (
       <StaffActionModal
         staff={staffAction}
         date={date}
@@ -1871,7 +1907,7 @@ function StaffActionModal({ staff, date, allAbsences, allTimeAbsences, dispatch,
 
 // ── Day Note inline (calendar column) ─────────────────────────────────────
 
-function DayNoteInline({ date, note, dispatch }) {
+function DayNoteInline({ date, note, dispatch, canPlan }) {
   const [editing, setEditing] = useState(false);
   const [text, setText] = useState(note?.text || '');
 
@@ -1907,7 +1943,7 @@ function DayNoteInline({ date, note, dispatch }) {
     }
   };
 
-  if (editing) {
+  if (canPlan && editing) {
     return (
       <div className="px-2 pb-2 pt-1 border-t border-gray-100">
         <textarea
@@ -1927,17 +1963,19 @@ function DayNoteInline({ date, note, dispatch }) {
   if (note?.text) {
     return (
       <div
-        className="px-2 pb-2 pt-1 border-t border-gray-100 cursor-pointer group"
-        onClick={(e) => { e.stopPropagation(); setEditing(true); }}
+        className={`px-2 pb-2 pt-1 border-t border-gray-100 ${canPlan ? 'cursor-pointer group' : ''}`}
+        onClick={canPlan ? (e) => { e.stopPropagation(); setEditing(true); } : undefined}
       >
         <div className="flex items-start gap-1">
           <StickyNote className="w-3 h-3 text-yellow-500 flex-shrink-0 mt-0.5" />
           <p className="text-xs text-gray-600 line-clamp-2 flex-1">{note.text}</p>
-          <Pencil className="w-2.5 h-2.5 text-gray-300 group-hover:text-gray-500 flex-shrink-0 mt-0.5 transition-colors" />
+          {canPlan && <Pencil className="w-2.5 h-2.5 text-gray-300 group-hover:text-gray-500 flex-shrink-0 mt-0.5 transition-colors" />}
         </div>
       </div>
     );
   }
+
+  if (!canPlan) return null;
 
   return (
     <div className="px-2 pb-1.5 pt-1 border-t border-gray-100">
@@ -1954,7 +1992,7 @@ function DayNoteInline({ date, note, dispatch }) {
 
 // ── Day Note section (Day Detail Modal) ───────────────────────────────────
 
-function DayNoteSection({ date, note, dispatch }) {
+function DayNoteSection({ date, note, dispatch, canPlan }) {
   const [editing, setEditing] = useState(false);
   const [text, setText] = useState(note?.text || '');
 
@@ -1994,7 +2032,7 @@ function DayNoteSection({ date, note, dispatch }) {
         Notitie
       </h3>
 
-      {editing ? (
+      {canPlan && editing ? (
         <div>
           <textarea
             value={text}
@@ -2030,15 +2068,15 @@ function DayNoteSection({ date, note, dispatch }) {
         </div>
       ) : note?.text ? (
         <div
-          className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 cursor-pointer hover:bg-yellow-100 transition-colors group"
-          onClick={() => setEditing(true)}
+          className={`bg-yellow-50 border border-yellow-200 rounded-lg p-3 transition-colors ${canPlan ? 'cursor-pointer hover:bg-yellow-100 group' : ''}`}
+          onClick={canPlan ? () => setEditing(true) : undefined}
         >
           <div className="flex items-start gap-2">
             <p className="text-sm text-gray-700 whitespace-pre-wrap flex-1">{note.text}</p>
-            <Pencil className="w-3.5 h-3.5 text-gray-300 group-hover:text-gray-500 flex-shrink-0 mt-0.5 transition-colors" />
+            {canPlan && <Pencil className="w-3.5 h-3.5 text-gray-300 group-hover:text-gray-500 flex-shrink-0 mt-0.5 transition-colors" />}
           </div>
         </div>
-      ) : (
+      ) : canPlan ? (
         <button
           onClick={() => setEditing(true)}
           className="w-full flex items-center justify-center gap-2 py-3 border-2 border-dashed border-gray-200 rounded-lg text-sm text-gray-400 hover:text-gray-600 hover:border-gray-300 transition-colors"
@@ -2046,6 +2084,8 @@ function DayNoteSection({ date, note, dispatch }) {
           <Plus className="w-4 h-4" />
           Notitie toevoegen
         </button>
+      ) : (
+        <p className="text-sm text-gray-400 italic">Geen notitie</p>
       )}
     </div>
   );

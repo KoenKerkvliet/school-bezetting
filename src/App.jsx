@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext.jsx';
 import { AppProvider, useApp } from './context/AppContext.jsx';
+import { isAdminOrAbove } from './utils/roles';
 import ProtectedRoute from './components/ProtectedRoute.jsx';
 import Navbar from './components/Navbar.jsx';
 import Dashboard from './components/Dashboard.jsx';
@@ -67,12 +68,12 @@ function AppContent() {
         <div className="px-6 py-6">
           {currentPage === 'dashboard' && <Dashboard initialDate={navigateDate} onInitialDateUsed={() => setNavigateDate(null)} />}
           {currentPage === 'absence' && <AbsencePage onBack={() => setCurrentPage('dashboard')} onNavigateToDay={handleNavigateToDay} />}
-          {currentPage === 'groups' && <GroupsPage />}
+          {currentPage === 'groups' && (isAdminOrAbove(role) ? <GroupsPage /> : <Dashboard initialDate={navigateDate} onInitialDateUsed={() => setNavigateDate(null)} />)}
           {currentPage === 'staff' && <StaffPage />}
           {currentPage === 'logbook' && <LogbookPage />}
-          {currentPage === 'test-email' && <TestEmailPage />}
-          {currentPage === 'admin' && <AdminDashboard onBack={() => setCurrentPage('dashboard')} onNavigateToUserDetail={handleNavigateToUserDetail} />}
-          {currentPage === 'user-detail' && selectedUserId && <UserDetailPage userId={selectedUserId} onBack={handleBackFromUserDetail} />}
+          {currentPage === 'test-email' && (isAdminOrAbove(role) ? <TestEmailPage /> : <Dashboard initialDate={navigateDate} onInitialDateUsed={() => setNavigateDate(null)} />)}
+          {currentPage === 'admin' && (isAdminOrAbove(role) ? <AdminDashboard onBack={() => setCurrentPage('dashboard')} onNavigateToUserDetail={handleNavigateToUserDetail} /> : <Dashboard initialDate={navigateDate} onInitialDateUsed={() => setNavigateDate(null)} />)}
+          {currentPage === 'user-detail' && selectedUserId && (isAdminOrAbove(role) ? <UserDetailPage userId={selectedUserId} onBack={handleBackFromUserDetail} /> : <Dashboard initialDate={navigateDate} onInitialDateUsed={() => setNavigateDate(null)} />)}
           {currentPage === 'profile' && <ProfilePage />}
           {currentPage === 'changelog' && <ChangelogPage />}
         </div>

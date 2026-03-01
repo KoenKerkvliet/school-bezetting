@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
+import { isAdminOrAbove, isSuperAdmin } from '../utils/roles'
 import UserManagementPage from './UserManagementPage'
 import SchoolManagementPage from './SchoolManagementPage'
 import * as organizationService from '../services/organizationService'
@@ -12,7 +13,7 @@ export default function AdminDashboard({ onBack, onNavigateToUserDetail }) {
   const [error, setError] = useState('')
 
   // Only admins can access
-  if (role !== 'Admin') {
+  if (!isAdminOrAbove(role)) {
     return (
       <div className="p-6 text-center">
         <p className="text-red-600 font-medium">Je hebt geen toegang tot het admin panel.</p>
@@ -79,16 +80,18 @@ export default function AdminDashboard({ onBack, onNavigateToUserDetail }) {
           >
             Gebruikers beheren
           </button>
-          <button
-            onClick={() => setActiveTab('schools')}
-            className={`pb-4 px-2 font-medium transition-colors ${
-              activeTab === 'schools'
-                ? 'text-blue-600 border-b-2 border-blue-600'
-                : 'text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            Scholen beheren
-          </button>
+          {isSuperAdmin(role) && (
+            <button
+              onClick={() => setActiveTab('schools')}
+              className={`pb-4 px-2 font-medium transition-colors ${
+                activeTab === 'schools'
+                  ? 'text-blue-600 border-b-2 border-blue-600'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              Scholen beheren
+            </button>
+          )}
         </div>
 
         {/* Overview Tab */}
@@ -159,7 +162,7 @@ export default function AdminDashboard({ onBack, onNavigateToUserDetail }) {
         {activeTab === 'users' && <UserManagementPage onNavigateToUserDetail={onNavigateToUserDetail} />}
 
         {/* Schools Tab */}
-        {activeTab === 'schools' && <SchoolManagementPage />}
+        {activeTab === 'schools' && isSuperAdmin(role) && <SchoolManagementPage />}
       </div>
     </div>
   )

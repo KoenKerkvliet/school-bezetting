@@ -73,12 +73,13 @@ serve(async (req: Request) => {
       .eq("organization_id", organizationId)
       .single();
 
-    if (targetUser?.role === "Admin") {
+    if (targetUser?.role === "Admin" || targetUser?.role === "Super Admin") {
+      // Count all users with admin-level roles in this organization
       const { count } = await adminClient
         .from("users")
         .select("id", { count: "exact", head: true })
         .eq("organization_id", organizationId)
-        .eq("role", "Admin");
+        .in("role", ["Admin", "Super Admin"]);
 
       if (count !== null && count <= 1) {
         return new Response(

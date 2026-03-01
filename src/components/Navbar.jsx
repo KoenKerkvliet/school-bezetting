@@ -4,6 +4,7 @@ import {
   Settings, LogOut, User, Shield, ClipboardList, Mail,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { isAdminOrAbove } from '../utils/roles';
 import changelog from '../changelog.json';
 
 const currentVersion = changelog[0]?.version || '1.0.0';
@@ -22,6 +23,7 @@ const settingsItems = [
 
 export default function Navbar({ currentPage, setCurrentPage }) {
   const { user, role, logout } = useAuth();
+  const showSettings = isAdminOrAbove(role);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const settingsBtnRef = useRef(null);
   const flyoutRef = useRef(null);
@@ -104,57 +106,59 @@ export default function Navbar({ currentPage, setCurrentPage }) {
 
       {/* Bottom section */}
       <div className="px-3 pb-4 space-y-1 border-t border-slate-700 pt-3">
-        {/* Settings toggle */}
-        <button
-          ref={settingsBtnRef}
-          onClick={() => setSettingsOpen(!settingsOpen)}
-          className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-            isSettingsActive || settingsOpen
-              ? 'bg-slate-700 text-white'
-              : 'text-slate-300 hover:bg-slate-700 hover:text-white'
-          }`}
-        >
-          <Settings className="w-5 h-5 flex-shrink-0" />
-          <span className="flex-1 text-left">Instellingen</span>
-        </button>
+        {/* Settings toggle — only Admin and above */}
+        {showSettings && (
+          <>
+            <button
+              ref={settingsBtnRef}
+              onClick={() => setSettingsOpen(!settingsOpen)}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                isSettingsActive || settingsOpen
+                  ? 'bg-slate-700 text-white'
+                  : 'text-slate-300 hover:bg-slate-700 hover:text-white'
+              }`}
+            >
+              <Settings className="w-5 h-5 flex-shrink-0" />
+              <span className="flex-1 text-left">Instellingen</span>
+            </button>
 
-        {/* Settings flyout (positioned to the right) */}
-        {settingsOpen && (
-          <div
-            ref={flyoutRef}
-            className="fixed z-50 bg-white rounded-lg shadow-xl border border-gray-200 py-2 min-w-[180px]"
-            style={{ top: flyoutPos.top, left: flyoutPos.left }}
-          >
-            {settingsItems.map(({ id, label, icon: Icon }) => (
-              <button
-                key={id}
-                onClick={() => handleNavClick(id)}
-                className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors ${
-                  currentPage === id
-                    ? 'bg-blue-50 text-blue-700 font-medium'
-                    : 'text-gray-700 hover:bg-gray-100'
-                }`}
+            {/* Settings flyout (positioned to the right) */}
+            {settingsOpen && (
+              <div
+                ref={flyoutRef}
+                className="fixed z-50 bg-white rounded-lg shadow-xl border border-gray-200 py-2 min-w-[180px]"
+                style={{ top: flyoutPos.top, left: flyoutPos.left }}
               >
-                <Icon className="w-4 h-4 flex-shrink-0" />
-                {label}
-              </button>
-            ))}
+                {settingsItems.map(({ id, label, icon: Icon }) => (
+                  <button
+                    key={id}
+                    onClick={() => handleNavClick(id)}
+                    className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors ${
+                      currentPage === id
+                        ? 'bg-blue-50 text-blue-700 font-medium'
+                        : 'text-gray-700 hover:bg-gray-100'
+                    }`}
+                  >
+                    <Icon className="w-4 h-4 flex-shrink-0" />
+                    {label}
+                  </button>
+                ))}
 
-            {/* Admin — only for Admin role */}
-            {role === 'Admin' && (
-              <button
-                onClick={() => handleNavClick('admin')}
-                className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors ${
-                  currentPage === 'admin'
-                    ? 'bg-blue-50 text-blue-700 font-medium'
-                    : 'text-gray-700 hover:bg-gray-100'
-                }`}
-              >
-                <Shield className="w-4 h-4 flex-shrink-0" />
-                Admin
-              </button>
+                {/* Admin — for Admin and Super Admin */}
+                <button
+                  onClick={() => handleNavClick('admin')}
+                  className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors ${
+                    currentPage === 'admin'
+                      ? 'bg-blue-50 text-blue-700 font-medium'
+                      : 'text-gray-700 hover:bg-gray-100'
+                  }`}
+                >
+                  <Shield className="w-4 h-4 flex-shrink-0" />
+                  Admin
+                </button>
+              </div>
             )}
-          </div>
+          </>
         )}
 
         {/* Profile */}

@@ -303,18 +303,11 @@ export async function logAuditAction(
 }
 
 /**
- * Get user permissions based on role
- * @param {string} role
- * @returns {array} permissions
+ * Get user permissions based on role.
+ * Roles: Super Admin, Admin, Planner, Viewer (+ legacy Editor → Planner)
+ * Re-exported from utils/roles.js
  */
-export function getRolePermissions(role) {
-  const permissions = {
-    Admin: ['create', 'read', 'update', 'delete', 'manage_users', 'view_audit'],
-    Editor: ['create', 'read', 'update'],
-    Viewer: ['read'],
-  }
-  return permissions[role] || []
-}
+export { getRolePermissions } from '../utils/roles'
 
 /**
  * Check if user has permission
@@ -322,7 +315,4 @@ export function getRolePermissions(role) {
  * @param {string} action
  * @returns {boolean}
  */
-export function hasPermission(role, action) {
-  const permissions = getRolePermissions(role)
-  return permissions.includes(action)
-}
+export { hasPermission } from '../utils/roles'

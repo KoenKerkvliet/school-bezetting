@@ -110,6 +110,15 @@ serve(async (req: Request) => {
       );
     }
 
+    // Validate role — only allowed roles can be assigned
+    const validRoles = ["Super Admin", "Admin", "Planner", "Viewer"];
+    if (!validRoles.includes(role)) {
+      return new Response(
+        JSON.stringify({ error: `Invalid role: ${role}. Valid roles: ${validRoles.join(", ")}` }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     // Generate temporary password
     const tempPassword = Math.random().toString(36).slice(2, 15) + Math.random().toString(36).slice(2, 15);
 

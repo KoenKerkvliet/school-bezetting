@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react'
 import { Settings } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
+import { isSuperAdmin, getAssignableRoles, getRoleBadgeColor } from '../utils/roles'
 import * as userService from '../services/userService'
 import * as organizationService from '../services/organizationService'
 
 export default function UserManagementPage({ onNavigateToUserDetail }) {
-  const { organizationId, user: currentUser } = useAuth()
+  const { organizationId, user: currentUser, role: currentUserRole } = useAuth()
   const [users, setUsers] = useState([])
   const [schools, setSchools] = useState([])
   const [loading, setLoading] = useState(true)
@@ -21,15 +22,18 @@ export default function UserManagementPage({ onNavigateToUserDetail }) {
     organizationId: '',
   })
 
-  const roles = ['Admin', 'Editor', 'Viewer']
+  const roles = getAssignableRoles(currentUserRole)
 
   // Load users and schools
   useEffect(() => {
     const loadData = async () => {
       try {
         setLoading(true)
+        const userListPromise = isSuperAdmin(currentUserRole)
+          ? userService.listAllUsers()
+          : userService.listOrgUsers(organizationId)
         const [userList, schoolList] = await Promise.all([
-          userService.listAllUsers(),
+          userListPromise,
           organizationService.listOrganizations(),
         ])
         setUsers(userList)
@@ -37,20 +41,8 @@ export default function UserManagementPage({ onNavigateToUserDetail }) {
         setFormData((prev) => ({ ...prev, organizationId: organizationId || '' }))
         setError('')
       } catch (err) {
-        // Fallback: if listAllUsers fails (RLS), try org-scoped
-        try {
-          const [userList, schoolList] = await Promise.all([
-            userService.listOrgUsers(organizationId),
-            organizationService.listOrganizations(),
-          ])
-          setUsers(userList)
-          setSchools(schoolList)
-          setFormData((prev) => ({ ...prev, organizationId: organizationId || '' }))
-          setError('')
-        } catch (fallbackErr) {
-          setError(fallbackErr.message)
-          console.error('Error loading data:', fallbackErr)
-        }
+        setError(err.message)
+        console.error('Error loading data:', err)
       } finally {
         setLoading(false)
       }
@@ -59,7 +51,7 @@ export default function UserManagementPage({ onNavigateToUserDetail }) {
     if (organizationId) {
       loadData()
     }
-  }, [organizationId])
+  }, [organizationId, currentUserRole])
 
   // Create school map for quick lookup
   const schoolMap = Object.fromEntries(schools.map((s) => [s.id, s]))
@@ -101,15 +93,6 @@ export default function UserManagementPage({ onNavigateToUserDetail }) {
       setError(err.message || 'Fout bij het aanmaken van gebruiker')
     } finally {
       setLoading(false)
-    }
-  }
-
-  const getRoleBadgeColor = (role) => {
-    switch (role) {
-      case 'Admin': return 'bg-purple-100 text-purple-700'
-      case 'Editor': return 'bg-blue-100 text-blue-700'
-      case 'Viewer': return 'bg-gray-100 text-gray-700'
-      default: return 'bg-gray-100 text-gray-700'
     }
   }
 
@@ -196,22 +179,24 @@ export default function UserManagementPage({ onNavigateToUserDetail }) {
               </select>
             </div>
 
-            {/* School selection */}
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">School *</label>
-              <select
-                value={formData.organizationId}
-                onChange={(e) => setFormData({ ...formData, organizationId: e.target.value })}
-                disabled={loading}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
-              >
-                {schools.map((school) => (
-                  <option key={school.id} value={school.id}>
-                    {school.name}{school.id === organizationId ? ' (huidige school)' : ''}
-                  </option>
-                ))}
-              </select>
-            </div>
+            {/* School selection — only Super Admin can choose a different school */}
+            {isSuperAdmin(currentUserRole) ? (
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">School *</label>
+                <select
+                  value={formData.organizationId}
+                  onChange={(e) => setFormData({ ...formData, organizationId: e.target.value })}
+                  disabled={loading}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
+                >
+                  {schools.map((school) => (
+                    <option key={school.id} value={school.id}>
+                      {school.name}{school.id === organizationId ? ' (huidige school)' : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : null}
           </div>
 
           <div className="flex gap-2 justify-end">
