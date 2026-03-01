@@ -48,22 +48,28 @@ export default function SettingsPage({ onNavigateToUserDetail }) {
         >
           Vakanties & vrije dagen
         </button>
+        <button
+          onClick={() => setActiveTab('admin')}
+          className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+            activeTab === 'admin'
+              ? 'border-blue-600 text-blue-600'
+              : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+          }`}
+        >
+          Beheer
+        </button>
       </div>
 
       {/* Tab content */}
-      <div className="space-y-10">
-        <section>
-          {activeTab === 'schedules' && <GradeLevelScheduleEditor />}
-          {activeTab === 'closures' && <SchoolClosureEditor />}
-        </section>
-
-        {/* Admin Section */}
-        <section className="border-t border-gray-200 pt-10">
+      <div>
+        {activeTab === 'schedules' && <GradeLevelScheduleEditor />}
+        {activeTab === 'closures' && <SchoolClosureEditor />}
+        {activeTab === 'admin' && (
           <AdminDashboard
             embedded
             onNavigateToUserDetail={onNavigateToUserDetail}
           />
-        </section>
+        )}
       </div>
     </div>
   )
