@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { isAdminOrAbove, isSuperAdmin } from '../utils/roles'
+import { BarChart3 } from 'lucide-react'
 import UserManagementPage from './UserManagementPage'
 import SchoolManagementPage from './SchoolManagementPage'
 import TestEmailPage from './TestEmailPage'
 import * as organizationService from '../services/organizationService'
 
 export default function AdminDashboard({ onBack, onNavigateToUserDetail, embedded = false }) {
-  const { role, organizationId, logout } = useAuth()
+  const { role, organizationId, orgSettings, updateOrgSetting, logout } = useAuth()
   const [activeTab, setActiveTab] = useState('overview')
   const [organization, setOrganization] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -166,6 +167,22 @@ export default function AdminDashboard({ onBack, onNavigateToUserDetail, embedde
                 Ga naar het tabblad "Gebruikers beheren" om nieuwe accounts aan te maken.
               </p>
             </div>
+
+            {/* Feature toggles — Super Admin only */}
+            {isSuperAdmin(role) && (
+              <div className="mt-8">
+                <h3 className="text-lg font-bold text-gray-900 mb-4">Functionaliteiten</h3>
+                <div className="bg-white rounded-lg border border-gray-200 divide-y divide-gray-100">
+                  <FeatureToggle
+                    icon={BarChart3}
+                    label="Statistieken"
+                    description="Toon de statistiekenpagina met afwezigheidsoverzichten voor alle gebruikers."
+                    enabled={!!orgSettings.statisticsEnabled}
+                    onChange={(val) => updateOrgSetting('statisticsEnabled', val)}
+                  />
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -178,6 +195,26 @@ export default function AdminDashboard({ onBack, onNavigateToUserDetail, embedde
         {/* Schools Tab */}
         {activeTab === 'schools' && isSuperAdmin(role) && <SchoolManagementPage />}
       </div>
+    </div>
+  )
+}
+
+function FeatureToggle({ icon: Icon, label, description, enabled, onChange }) {
+  return (
+    <div className="flex items-center gap-4 px-5 py-4">
+      <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${enabled ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-400'}`}>
+        <Icon className="w-5 h-5" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="font-medium text-sm text-gray-900">{label}</div>
+        <div className="text-xs text-gray-500 mt-0.5">{description}</div>
+      </div>
+      <button
+        onClick={() => onChange(!enabled)}
+        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors flex-shrink-0 ${enabled ? 'bg-blue-600' : 'bg-gray-300'}`}
+      >
+        <span className={`inline-block h-4 w-4 rounded-full bg-white transition-transform shadow-sm ${enabled ? 'translate-x-6' : 'translate-x-1'}`} />
+      </button>
     </div>
   )
 }

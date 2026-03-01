@@ -11,7 +11,7 @@ const mainNavItems = [
   { id: 'absence',   label: 'Afwezigheid',  icon: Calendar },
   { id: 'staff',     label: "Collega's",    icon: Users },
   { id: 'groups',    label: 'Groepen',      icon: BookOpen, adminOnly: true },
-  { id: 'statistics', label: 'Statistieken', icon: BarChart3 },
+  { id: 'statistics', label: 'Statistieken', icon: BarChart3, featureKey: 'statisticsEnabled' },
   { id: 'logbook',   label: 'Logboek',      icon: ClipboardList },
 ];
 
@@ -32,7 +32,7 @@ function NavItem({ id, label, icon: Icon, active, onClick }) {
 }
 
 export default function Navbar({ currentPage, setCurrentPage }) {
-  const { user, role, logout } = useAuth();
+  const { user, role, orgSettings, logout } = useAuth();
   const showSettings = isAdminOrAbove(role);
   const [drawerOpen, setDrawerOpen] = useState(false);
 
@@ -69,7 +69,11 @@ export default function Navbar({ currentPage, setCurrentPage }) {
     setDrawerOpen(false);
   };
 
-  const visibleNavItems = mainNavItems.filter(item => !item.adminOnly || isAdminOrAbove(role));
+  const visibleNavItems = mainNavItems.filter(item => {
+    if (item.adminOnly && !isAdminOrAbove(role)) return false;
+    if (item.featureKey && !orgSettings[item.featureKey]) return false;
+    return true;
+  });
 
   // Shared navigation content (used by both sidebar and drawer)
   const renderNavContent = () => (

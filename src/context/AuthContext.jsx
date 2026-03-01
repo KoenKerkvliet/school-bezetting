@@ -83,6 +83,7 @@ export function AuthProvider({ children }) {
   const [role, setRole] = useState(null)
   const [permissions, setPermissions] = useState([])
   const [organizationId, setOrganizationId] = useState(null)
+  const [orgSettings, setOrgSettings] = useState({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
@@ -125,6 +126,27 @@ export function AuthProvider({ children }) {
     }
   }, [])
 
+  // Load org settings when orgId changes
+  useEffect(() => {
+    if (!organizationId) return
+    supabase.from('organizations').select('settings').eq('id', organizationId).single()
+      .then(({ data }) => {
+        if (data?.settings) setOrgSettings(data.settings)
+      })
+      .catch(() => {})
+  }, [organizationId])
+
+  // Update a single org setting (persists to Supabase)
+  const updateOrgSetting = useCallback(async (key, value) => {
+    const newSettings = { ...orgSettings, [key]: value }
+    setOrgSettings(newSettings)
+    try {
+      await supabase.from('organizations').update({ settings: newSettings, updated_at: new Date() }).eq('id', organizationId)
+    } catch (err) {
+      console.error('Error updating org settings:', err)
+    }
+  }, [orgSettings, organizationId])
+
   function clearAuth() {
     setUser(null)
     setUserData(null)
@@ -133,6 +155,7 @@ export function AuthProvider({ children }) {
     setRole(null)
     setPermissions([])
     setOrganizationId(null)
+    setOrgSettings({})
   }
 
   // Auth listener — NON-BLOCKING: set auth state immediately, fetch user data in background
@@ -233,6 +256,8 @@ export function AuthProvider({ children }) {
     role,
     permissions,
     organizationId,
+    orgSettings,
+    updateOrgSetting,
     loading,
     error,
     signIn,

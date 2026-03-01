@@ -6,6 +6,7 @@ import {
 import { format, parseISO, startOfMonth, endOfMonth, eachMonthOfInterval, isWithinInterval, subMonths, startOfYear, endOfYear, getYear } from 'date-fns';
 import { nl } from 'date-fns/locale';
 import { useApp } from '../context/AppContext.jsx';
+import { useAuth } from '../context/AuthContext.jsx';
 
 const MONTH_LABELS = ['Jan', 'Feb', 'Mrt', 'Apr', 'Mei', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dec'];
 
@@ -13,7 +14,24 @@ function capitalize(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
 
 export default function StatisticsPage() {
   const { state } = useApp();
+  const { orgSettings } = useAuth();
   const { staff, absences, timeAbsences } = state;
+
+  if (!orgSettings.statisticsEnabled) {
+    return (
+      <div className="max-w-7xl">
+        <div className="flex items-center gap-3 mb-6">
+          <BarChart3 className="w-7 h-7 text-gray-400" />
+          <h1 className="text-3xl font-bold text-gray-400">Statistieken</h1>
+        </div>
+        <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
+          <BarChart3 className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+          <p className="text-gray-500 font-medium">Statistieken zijn uitgeschakeld</p>
+          <p className="text-gray-400 text-sm mt-1">Een beheerder kan dit inschakelen via Instellingen → Beheer.</p>
+        </div>
+      </div>
+    );
+  }
 
   const today = new Date();
   const currentYear = getYear(today);
