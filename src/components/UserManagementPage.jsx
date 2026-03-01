@@ -272,7 +272,9 @@ export default function UserManagementPage({ onNavigateToUserDetail }) {
                       </span>
                     </td>
                     <td className="px-6 py-4 text-sm">
-                      {user.email_verified_at ? (
+                      {user.id === currentUser?.id ? (
+                        <span className="text-gray-400 text-xs">—</span>
+                      ) : user.email_verified_at ? (
                         <span className="inline-block px-2 py-1 bg-green-100 text-green-700 rounded text-xs font-medium">
                           Geverifieerd
                         </span>
