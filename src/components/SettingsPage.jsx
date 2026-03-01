@@ -3,7 +3,6 @@ import { Settings } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { isAdminOrAbove } from '../utils/roles'
 import GradeLevelScheduleEditor from './GradeLevelScheduleEditor'
-import TestEmailPage from './TestEmailPage'
 import AdminDashboard from './AdminDashboard'
 
 export default function SettingsPage({ onNavigateToUserDetail }) {
@@ -30,11 +29,6 @@ export default function SettingsPage({ onNavigateToUserDetail }) {
         {/* Grade Level Schedules Section */}
         <section>
           <GradeLevelScheduleEditor />
-        </section>
-
-        {/* Test Email Section */}
-        <section className="border-t border-gray-200 pt-10">
-          <TestEmailPage />
         </section>
 
         {/* Admin Section */}

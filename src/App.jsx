@@ -63,8 +63,8 @@ function AppContent() {
   return (
     <div className="min-h-screen bg-gray-50 flex">
       <Navbar currentPage={currentPage} setCurrentPage={setCurrentPage} />
-      <main className="flex-1 min-w-0 overflow-auto">
-        <div className="px-6 py-6">
+      <main className="flex-1 min-w-0 overflow-auto flex flex-col">
+        <div className="px-6 py-6 flex-1">
           {currentPage === 'dashboard' && <Dashboard initialDate={navigateDate} onInitialDateUsed={() => setNavigateDate(null)} />}
           {currentPage === 'absence' && <AbsencePage onBack={() => setCurrentPage('dashboard')} onNavigateToDay={handleNavigateToDay} />}
           {currentPage === 'groups' && (isAdminOrAbove(role) ? <GroupsPage /> : <Dashboard initialDate={navigateDate} onInitialDateUsed={() => setNavigateDate(null)} />)}
@@ -75,6 +75,9 @@ function AppContent() {
           {currentPage === 'profile' && <ProfilePage />}
           {currentPage === 'changelog' && <ChangelogPage />}
         </div>
+        <footer className="px-6 py-3 text-xs text-gray-400 border-t border-gray-200">
+          &copy; {new Date().getFullYear()} <a href="https://designpixels.nl" target="_blank" rel="noopener noreferrer" className="text-gray-500 hover:text-blue-600 transition-colors">Design Pixels</a>
+        </footer>
       </main>
     </div>
   );

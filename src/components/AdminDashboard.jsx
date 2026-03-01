@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext'
 import { isAdminOrAbove, isSuperAdmin } from '../utils/roles'
 import UserManagementPage from './UserManagementPage'
 import SchoolManagementPage from './SchoolManagementPage'
+import TestEmailPage from './TestEmailPage'
 import * as organizationService from '../services/organizationService'
 
 export default function AdminDashboard({ onBack, onNavigateToUserDetail, embedded = false }) {
@@ -78,7 +79,17 @@ export default function AdminDashboard({ onBack, onNavigateToUserDetail, embedde
                 : 'text-gray-600 hover:text-gray-900'
             }`}
           >
-            Gebruikers beheren
+            Gebruikers
+          </button>
+          <button
+            onClick={() => setActiveTab('email')}
+            className={`pb-4 px-2 font-medium transition-colors ${
+              activeTab === 'email'
+                ? 'text-blue-600 border-b-2 border-blue-600'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            Email
           </button>
           {isSuperAdmin(role) && (
             <button
@@ -89,7 +100,7 @@ export default function AdminDashboard({ onBack, onNavigateToUserDetail, embedde
                   : 'text-gray-600 hover:text-gray-900'
               }`}
             >
-              Scholen beheren
+              Scholen
             </button>
           )}
         </div>
@@ -160,6 +171,9 @@ export default function AdminDashboard({ onBack, onNavigateToUserDetail, embedde
 
         {/* Users Tab */}
         {activeTab === 'users' && <UserManagementPage onNavigateToUserDetail={onNavigateToUserDetail} />}
+
+        {/* Email Tab */}
+        {activeTab === 'email' && <TestEmailPage />}
 
         {/* Schools Tab */}
         {activeTab === 'schools' && isSuperAdmin(role) && <SchoolManagementPage />}
