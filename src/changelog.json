@@ -1,6 +1,23 @@
 [
   {
-    "version": "1.5.0",
+    "version": "1.4.0",
+    "date": "2026-03-01",
+    "type": "minor",
+    "changes": [
+      "Instellingen is nu een volwaardige pagina (geen flyout meer)",
+      "Lestijden per leerjaar: stel standaardtijden in per leerjaar (1–8) per dag",
+      "Groepen koppelen aan een leerjaar: lestijden worden automatisch overgenomen",
+      "Begin- en eindtijd verwijderd uit groep-formulier (komt nu uit instellingen)",
+      "Nieuwe functies: MT en Conciërge toegevoegd",
+      "Standaard werktijden 08:00–17:00 bij werkschema",
+      "Sidebar: Collega's boven Groepen geplaatst, Logboek verplaatst",
+      "Menu-overflow fix bij laatste collega op de pagina",
+      "Directie, MT, IB en Conciërge samengevoegd in MT & Staf sectie",
+      "Logo als favicon en in de sidebar"
+    ]
+  },
+  {
+    "version": "1.3.0",
     "date": "2026-03-01",
     "type": "minor",
     "changes": [
@@ -18,7 +35,7 @@
     ]
   },
   {
-    "version": "1.2.2",
+    "version": "1.2.0",
     "date": "2026-02-28",
     "type": "minor",
     "changes": [
