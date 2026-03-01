@@ -52,7 +52,7 @@ function workingHoursCover(daySchedule, requiredStart, requiredEnd) {
 
 export default function Dashboard({ initialDate, onInitialDateUsed }) {
   const { state, dispatch } = useApp();
-  const { groups, units, staff, absences, timeAbsences, dayNotes } = state;
+  const { groups, units, staff, absences, timeAbsences, unitOverrides, dayNotes } = state;
 
   // Initialize currentWeek from localStorage or use today
   const [currentWeek, setCurrentWeek] = useState(() => {
@@ -65,6 +65,7 @@ export default function Dashboard({ initialDate, onInitialDateUsed }) {
   });
   const [selectedDay, setSelectedDay] = useState(null);
   const [selectedGroup, setSelectedGroup] = useState(null); // { group, date }
+  const [unitMovePopup, setUnitMovePopup] = useState(null); // { staffId, staffName, date, currentUnitId, rect }
 
   // Handle navigation from other pages (e.g. AbsencePage → specific day)
   useEffect(() => {
@@ -147,8 +148,18 @@ export default function Dashboard({ initialDate, onInitialDateUsed }) {
   /** Unit-level staff assigned to a unit on a specific date */
   function getUnitStaff(unitId, date) {
     const dayKey = getDayKey(date);
+    const dateStr = formatLocalDate(date);
     return staff
-      .filter(s => s.schedule[dayKey]?.type === 'unit' && s.schedule[dayKey]?.unitId === unitId)
+      .filter(s => {
+        const sched = s.schedule[dayKey];
+        if (sched?.type !== 'unit') return false;
+        // Check for day-specific unit override
+        const override = (unitOverrides || []).find(
+          o => o.staffId === s.id && o.date === dateStr
+        );
+        if (override) return override.unitId === unitId;
+        return sched.unitId === unitId;
+      })
       .map(s => ({
         ...s,
         absent: isAbsent(s.id, date),
@@ -215,6 +226,57 @@ export default function Dashboard({ initialDate, onInitialDateUsed }) {
   function getAmbulantStaff(date) {
     const dayKey = getDayKey(date);
     return staff.filter(s => !isAbsent(s.id, date) && s.schedule?.[dayKey]?.type === 'ambulant');
+  }
+
+  // ── Unit override helpers ──────────────────────────────────────────────
+  function getEffectiveUnitId(staffMember, date) {
+    const dateStr = formatLocalDate(date);
+    const override = (unitOverrides || []).find(
+      o => o.staffId === staffMember.id && o.date === dateStr
+    );
+    if (override) return override.unitId;
+    const dayKey = getDayKey(date);
+    const sched = staffMember.schedule?.[dayKey];
+    return sched?.type === 'unit' ? sched.unitId : null;
+  }
+
+  function getUnitOverride(staffId, date) {
+    const dateStr = formatLocalDate(date);
+    return (unitOverrides || []).find(
+      o => o.staffId === staffId && o.date === dateStr
+    );
+  }
+
+  function handleUnitMove(staffId, date, newUnitId) {
+    const dateStr = formatLocalDate(date);
+    const existingOverride = getUnitOverride(staffId, date);
+    // Check if new unit is the same as the original schedule (no override needed)
+    const staffMember = staff.find(s => s.id === staffId);
+    const dayKey = getDayKey(date);
+    const schedUnitId = staffMember?.schedule?.[dayKey]?.unitId;
+    if (newUnitId === schedUnitId && existingOverride) {
+      // Moving back to original — just delete the override
+      dispatch({ type: 'DELETE_UNIT_OVERRIDE', payload: existingOverride.id });
+    } else if (newUnitId !== schedUnitId || !existingOverride) {
+      dispatch({
+        type: 'SET_UNIT_OVERRIDE',
+        payload: {
+          id: existingOverride?.id || generateId(),
+          staffId,
+          date: dateStr,
+          unitId: newUnitId,
+        },
+      });
+    }
+    setUnitMovePopup(null);
+  }
+
+  function handleUnitMoveReset(staffId, date) {
+    const existingOverride = getUnitOverride(staffId, date);
+    if (existingOverride) {
+      dispatch({ type: 'DELETE_UNIT_OVERRIDE', payload: existingOverride.id });
+    }
+    setUnitMovePopup(null);
   }
 
   // ── Day notes helpers ───────────────────────────────────────────────────
@@ -499,14 +561,14 @@ export default function Dashboard({ initialDate, onInitialDateUsed }) {
             const availableStaff = getAvailableStaff(date);
             const ambulantStaff = getAmbulantStaff(date);
 
-            // Group available staff by unit for "Ondersteuning" display
+            // Group available staff by unit for "Ondersteuning" display (with overrides)
             const staffByUnit = {};
             const staffNoUnit = [];
             availableStaff.forEach(s => {
-              const sched = s.schedule?.[dayKey];
-              if (sched?.type === 'unit' && sched?.unitId) {
-                if (!staffByUnit[sched.unitId]) staffByUnit[sched.unitId] = [];
-                staffByUnit[sched.unitId].push(s);
+              const effectiveUnit = getEffectiveUnitId(s, date);
+              if (effectiveUnit) {
+                if (!staffByUnit[effectiveUnit]) staffByUnit[effectiveUnit] = [];
+                staffByUnit[effectiveUnit].push(s);
               } else {
                 staffNoUnit.push(s);
               }
@@ -656,11 +718,33 @@ export default function Dashboard({ initialDate, onInitialDateUsed }) {
                       <div key={u.id} className="mb-1">
                         <div className="text-[10px] font-semibold text-indigo-400 mb-0.5">{u.name}</div>
                         <div className="flex flex-wrap gap-1">
-                          {staffByUnit[u.id].map(s => (
-                            <span key={s.id} className="text-xs bg-indigo-50 text-indigo-700 border border-indigo-100 rounded-full px-1.5 py-0.5">
-                              {s.name.split(' ')[0]}
-                            </span>
-                          ))}
+                          {staffByUnit[u.id].map(s => {
+                            const hasOverride = !!getUnitOverride(s.id, date);
+                            return (
+                              <span
+                                key={s.id}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const rect = e.currentTarget.getBoundingClientRect();
+                                  setUnitMovePopup({
+                                    staffId: s.id,
+                                    staffName: s.name.split(' ')[0],
+                                    date,
+                                    currentUnitId: getEffectiveUnitId(s, date),
+                                    rect,
+                                  });
+                                }}
+                                className={`text-xs rounded-full px-1.5 py-0.5 cursor-pointer transition-colors hover:bg-indigo-200 ${
+                                  hasOverride
+                                    ? 'bg-amber-100 text-amber-800 border border-amber-300'
+                                    : 'bg-indigo-50 text-indigo-700 border border-indigo-100'
+                                }`}
+                                title={hasOverride ? `${s.name.split(' ')[0]} — verplaatst (klik om te wijzigen)` : `${s.name.split(' ')[0]} — klik om te verplaatsen`}
+                              >
+                                {hasOverride && '↪ '}{s.name.split(' ')[0]}
+                              </span>
+                            );
+                          })}
                         </div>
                       </div>
                     ))}
@@ -705,6 +789,46 @@ export default function Dashboard({ initialDate, onInitialDateUsed }) {
         </div>
       </div>
 
+      {/* ── Unit move popup ── */}
+      {unitMovePopup && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setUnitMovePopup(null)} />
+          <div
+            className="fixed z-50 bg-white shadow-xl rounded-lg border border-gray-200 py-1 min-w-[160px]"
+            style={{
+              top: Math.min(unitMovePopup.rect.bottom + 4, window.innerHeight - 200),
+              left: Math.min(unitMovePopup.rect.left, window.innerWidth - 180),
+            }}
+          >
+            <div className="px-3 py-1.5 text-xs font-bold text-gray-500 border-b border-gray-100">
+              {unitMovePopup.staffName} verplaatsen
+            </div>
+            {units.map(unit => (
+              <button
+                key={unit.id}
+                onClick={() => handleUnitMove(unitMovePopup.staffId, unitMovePopup.date, unit.id)}
+                className={`w-full text-left px-3 py-1.5 text-sm transition-colors ${
+                  unit.id === unitMovePopup.currentUnitId
+                    ? 'bg-indigo-50 text-indigo-700 font-medium'
+                    : 'text-gray-700 hover:bg-gray-100'
+                }`}
+              >
+                {unit.name}
+                {unit.id === unitMovePopup.currentUnitId && ' ✓'}
+              </button>
+            ))}
+            {getUnitOverride(unitMovePopup.staffId, unitMovePopup.date) && (
+              <button
+                onClick={() => handleUnitMoveReset(unitMovePopup.staffId, unitMovePopup.date)}
+                className="w-full text-left px-3 py-1.5 text-sm text-red-600 hover:bg-red-50 border-t border-gray-100"
+              >
+                Standaard herstellen
+              </button>
+            )}
+          </div>
+        </>
+      )}
+
       {/* ── Day detail modal ── */}
       {selectedDay && (
         <DayDetailModal
@@ -720,6 +844,10 @@ export default function Dashboard({ initialDate, onInitialDateUsed }) {
           getAvailableStaff={getAvailableStaff}
           getAmbulantStaff={getAmbulantStaff}
           isGroupUnmanned={isGroupUnmanned}
+          getEffectiveUnitId={getEffectiveUnitId}
+          getUnitOverride={getUnitOverride}
+          onUnitMove={handleUnitMove}
+          onUnitMoveReset={handleUnitMoveReset}
           dayNote={getDayNote(selectedDay)}
           dispatch={dispatch}
           onClose={() => setSelectedDay(null)}
@@ -752,9 +880,11 @@ export default function Dashboard({ initialDate, onInitialDateUsed }) {
 function DayDetailModal({
   date, groups, units, staff, absences, timeAbsences,
   getGroupStaff, getUnitStaff, getAbsentOnDay, getAvailableStaff, getAmbulantStaff,
-  isGroupUnmanned, dayNote, dispatch, onClose,
+  isGroupUnmanned, getEffectiveUnitId, getUnitOverride, onUnitMove, onUnitMoveReset,
+  dayNote, dispatch, onClose,
 }) {
   const [staffAction, setStaffAction] = useState(null);
+  const [unitMoveTarget, setUnitMoveTarget] = useState(null);
   const absentStaff = getAbsentOnDay(date);
   const availableStaff = getAvailableStaff(date);
   const ambulantStaff = getAmbulantStaff(date);
@@ -762,20 +892,20 @@ function DayDetailModal({
   const today = isToday(date);
   const dayKey = getDayKey(date);
 
-  // Group available staff by unit for "Ondersteuning" display
+  // Group available staff by unit for "Ondersteuning" display (with overrides)
   const staffByUnit = {};
   const staffNoUnit = [];
   availableStaff.forEach(s => {
-    const sched = s.schedule?.[dayKey];
-    if (sched?.type === 'unit' && sched?.unitId) {
-      if (!staffByUnit[sched.unitId]) staffByUnit[sched.unitId] = [];
-      staffByUnit[sched.unitId].push(s);
+    const effectiveUnit = getEffectiveUnitId(s, date);
+    if (effectiveUnit) {
+      if (!staffByUnit[effectiveUnit]) staffByUnit[effectiveUnit] = [];
+      staffByUnit[effectiveUnit].push(s);
     } else {
       staffNoUnit.push(s);
     }
   });
 
-  const ungroupedGroups = groups.filter(g => !g.unitId || !units.find(u => u.id === g.unitId));
+  const ungroupedGroups = groups.filter(g => !g.unitId || !units.find(u => u.id === g.unitId)).sort((a, b) => a.name.localeCompare(b.name, 'nl'));
 
   return (
     <>
@@ -823,7 +953,7 @@ function DayDetailModal({
           {/* Units with their groups */}
           <div className="p-4 space-y-5">
             {units.map(unit => {
-              const unitGroups = groups.filter(g => g.unitId === unit.id);
+              const unitGroups = groups.filter(g => g.unitId === unit.id).sort((a, b) => a.name.localeCompare(b.name, 'nl'));
               if (unitGroups.length === 0) return null;
               const unitStaff = getUnitStaff(unit.id, date);
               const unmannedInUnit = unitGroups.filter(g => isGroupActiveOnDay(g, dayKey) && isGroupUnmanned(g.id, date)).length;
@@ -927,21 +1057,39 @@ function DayDetailModal({
 
             {/* Ondersteuning (unit support) */}
             {availableStaff.length > 0 && (
-              <div className="pt-2 border-t border-gray-100">
+              <div className="pt-2 border-t border-gray-100 relative">
                 <h3 className="font-bold text-gray-700 text-sm mb-2 pb-1 border-b border-gray-200 flex items-center gap-1.5">
                   <Users className="w-4 h-4 text-indigo-500" />
                   Ondersteuning ({availableStaff.length})
+                  <span className="text-[10px] font-normal text-gray-400 ml-auto">Klik om te verplaatsen</span>
                 </h3>
                 <div className="space-y-2">
                   {units.filter(u => staffByUnit[u.id]).map(u => (
                     <div key={u.id}>
                       <div className="text-xs font-semibold text-indigo-500 mb-1">{u.name}</div>
                       <div className="flex flex-wrap gap-1.5">
-                        {staffByUnit[u.id].map(s => (
-                          <span key={s.id} className="text-xs bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-full px-2.5 py-1 font-medium">
-                            {s.name}
-                          </span>
-                        ))}
+                        {staffByUnit[u.id].map(s => {
+                          const hasOverride = !!getUnitOverride(s.id, date);
+                          return (
+                            <span
+                              key={s.id}
+                              onClick={() => setUnitMoveTarget({
+                                staffId: s.id,
+                                staffName: s.name,
+                                date,
+                                currentUnitId: getEffectiveUnitId(s, date),
+                              })}
+                              className={`text-xs rounded-full px-2.5 py-1 font-medium cursor-pointer transition-colors ${
+                                hasOverride
+                                  ? 'bg-amber-100 text-amber-800 border border-amber-300 hover:bg-amber-200'
+                                  : 'bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-100'
+                              }`}
+                              title={hasOverride ? 'Verplaatst — klik om te wijzigen' : 'Klik om te verplaatsen'}
+                            >
+                              {hasOverride && '↪ '}{s.name}
+                            </span>
+                          );
+                        })}
                       </div>
                     </div>
                   ))}
@@ -958,6 +1106,46 @@ function DayDetailModal({
                     </div>
                   )}
                 </div>
+
+                {/* Unit move popup within modal */}
+                {unitMoveTarget && (
+                  <>
+                    <div className="fixed inset-0 z-[60]" onClick={() => setUnitMoveTarget(null)} />
+                    <div className="absolute right-0 top-0 z-[70] bg-white shadow-xl rounded-lg border border-gray-200 py-1 min-w-[180px]">
+                      <div className="px-3 py-1.5 text-xs font-bold text-gray-500 border-b border-gray-100">
+                        {unitMoveTarget.staffName.split(' ')[0]} verplaatsen
+                      </div>
+                      {units.map(unit => (
+                        <button
+                          key={unit.id}
+                          onClick={() => {
+                            onUnitMove(unitMoveTarget.staffId, unitMoveTarget.date, unit.id);
+                            setUnitMoveTarget(null);
+                          }}
+                          className={`w-full text-left px-3 py-2 text-sm transition-colors ${
+                            unit.id === unitMoveTarget.currentUnitId
+                              ? 'bg-indigo-50 text-indigo-700 font-medium'
+                              : 'text-gray-700 hover:bg-gray-100'
+                          }`}
+                        >
+                          {unit.name}
+                          {unit.id === unitMoveTarget.currentUnitId && ' ✓'}
+                        </button>
+                      ))}
+                      {getUnitOverride(unitMoveTarget.staffId, unitMoveTarget.date) && (
+                        <button
+                          onClick={() => {
+                            onUnitMoveReset(unitMoveTarget.staffId, unitMoveTarget.date);
+                            setUnitMoveTarget(null);
+                          }}
+                          className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50 border-t border-gray-100"
+                        >
+                          Standaard herstellen
+                        </button>
+                      )}
+                    </div>
+                  </>
+                )}
               </div>
             )}
 

@@ -4,7 +4,7 @@ import { supabase } from '../services/supabaseClient';
 import { useAuth } from './AuthContext';
 import {
   appGroupToDb, appUnitToDb, appStaffToDb, appStaffToScheduleRows,
-  appAbsenceToDb, appTimeAbsenceToDb, appStaffDateAssignmentToDb, appDayNoteToDb,
+  appAbsenceToDb, appTimeAbsenceToDb, appStaffDateAssignmentToDb, appUnitOverrideToDb, appDayNoteToDb,
 } from '../services/dataMapper';
 import { logAuditAction } from '../services/userService';
 
@@ -18,6 +18,7 @@ const emptyState = {
   absences: [],
   timeAbsences: [],
   staffDateAssignments: [], // Date-specific staff assignments (replacements, overrides)
+  unitOverrides: [], // Day-specific unit reassignments { id, staffId, date, unitId }
   dayNotes: [], // Notes per day { id, date, text }
 };
 
@@ -83,6 +84,26 @@ function reducer(state, action) {
         ),
       };
 
+    case 'SET_UNIT_OVERRIDE': {
+      // Upsert: replace existing override for same staff+date, or add new
+      const existingOverride = (state.unitOverrides || []).find(
+        o => o.staffId === action.payload.staffId && o.date === action.payload.date
+      );
+      if (existingOverride) {
+        return {
+          ...state,
+          unitOverrides: state.unitOverrides.map(o =>
+            o.staffId === action.payload.staffId && o.date === action.payload.date
+              ? { ...o, unitId: action.payload.unitId }
+              : o
+          ),
+        };
+      }
+      return { ...state, unitOverrides: [...(state.unitOverrides || []), action.payload] };
+    }
+    case 'DELETE_UNIT_OVERRIDE':
+      return { ...state, unitOverrides: (state.unitOverrides || []).filter(o => o.id !== action.payload) };
+
     case 'SET_DAY_NOTE': {
       // Upsert: replace existing note for same date, or add new
       const existing = (state.dayNotes || []).find(n => n.date === action.payload.date);
@@ -143,6 +164,7 @@ export function AppProvider({ children }) {
                 absences: data.absences || [],
                 timeAbsences: data.timeAbsences || [],
                 staffDateAssignments: data.staffDateAssignments || [],
+                unitOverrides: data.unitOverrides || [],
                 dayNotes: data.dayNotes || [],
               }
             });
@@ -415,6 +437,29 @@ async function writeToSupabase(orgId, action, userId) {
         .eq('organization_id', orgId);
       if (error) throw error;
       audit('assignment', null, { staffId: p.staffId, date: p.date });
+      return;
+    }
+
+    // ── Unit Overrides ──
+    case 'SET_UNIT_OVERRIDE': {
+      const row = appUnitOverrideToDb(p, orgId);
+      // Upsert: check if override exists for this staff+date
+      const { data: existingUO } = await supabase.from('staff_unit_overrides')
+        .select('id').eq('staff_id', row.staff_id).eq('date', row.date).eq('organization_id', orgId).maybeSingle();
+      if (existingUO) {
+        const { error } = await supabase.from('staff_unit_overrides').update({ unit_id: row.unit_id }).eq('id', existingUO.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from('staff_unit_overrides').insert([row]);
+        if (error) throw error;
+      }
+      audit('unit_override', p.id, { staffId: p.staffId, date: p.date, unitId: p.unitId });
+      return;
+    }
+    case 'DELETE_UNIT_OVERRIDE': {
+      const { error } = await supabase.from('staff_unit_overrides').delete().eq('id', p);
+      if (error) throw error;
+      audit('unit_override', p, {});
       return;
     }
 

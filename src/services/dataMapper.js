@@ -235,6 +235,27 @@ export function appStaffDateAssignmentToDb(app, orgId) {
   }
 }
 
+// ── Unit Overrides ───────────────────────────────────────────────────
+
+export function dbUnitOverrideToApp(db) {
+  return {
+    id: db.id,
+    staffId: db.staff_id,
+    date: db.date,
+    unitId: db.unit_id,
+  }
+}
+
+export function appUnitOverrideToDb(app, orgId) {
+  return {
+    id: app.id,
+    staff_id: app.staffId,
+    date: formatDateForDb(app.date),
+    unit_id: app.unitId,
+    organization_id: orgId,
+  }
+}
+
 // ── Day Notes ────────────────────────────────────────────────────────
 
 export function dbDayNoteToApp(db) {
