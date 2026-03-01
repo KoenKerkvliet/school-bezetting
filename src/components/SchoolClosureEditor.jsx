@@ -8,10 +8,12 @@ const CLOSURE_TYPES = [
   { value: 'vacation', label: 'Vakantie', badge: 'bg-blue-100 text-blue-700' },
   { value: 'holiday', label: 'Feestdag', badge: 'bg-purple-100 text-purple-700' },
   { value: 'half_day', label: 'Halve dag', badge: 'bg-amber-100 text-amber-700' },
+  { value: 'study_day', label: 'Studiedag', badge: 'bg-teal-100 text-teal-700' },
+  { value: 'study_afternoon', label: 'Studiemiddag', badge: 'bg-cyan-100 text-cyan-700' },
 ];
 
 function emptyForm() {
-  return { name: '', type: 'vacation', startDate: '', endDate: '', freeFromTime: '12:00' };
+  return { name: '', type: 'vacation', startDate: '', endDate: '', freeFromTime: '12:00', freeToTime: '16:00' };
 }
 
 function formatDateNL(dateStr) {
@@ -44,6 +46,7 @@ export default function SchoolClosureEditor() {
       startDate: closure.startDate,
       endDate: closure.endDate,
       freeFromTime: closure.freeFromTime || '12:00',
+      freeToTime: closure.freeToTime || '16:00',
     });
     setError('');
   };
@@ -67,7 +70,8 @@ export default function SchoolClosureEditor() {
       type: form.type,
       startDate: form.startDate,
       endDate: form.type === 'vacation' ? form.endDate : form.startDate,
-      freeFromTime: form.type === 'half_day' ? form.freeFromTime : null,
+      freeFromTime: (form.type === 'half_day' || form.type === 'study_afternoon') ? form.freeFromTime : null,
+      freeToTime: form.type === 'study_afternoon' ? form.freeToTime : null,
     };
 
     if (editingId === 'new') {
@@ -188,6 +192,29 @@ export default function SchoolClosureEditor() {
                 />
               </div>
             )}
+
+            {form.type === 'study_afternoon' && (
+              <>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Van</label>
+                  <input
+                    type="time"
+                    value={form.freeFromTime}
+                    onChange={e => setForm({ ...form, freeFromTime: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Tot</label>
+                  <input
+                    type="time"
+                    value={form.freeToTime}
+                    onChange={e => setForm({ ...form, freeToTime: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+              </>
+            )}
           </div>
 
           {error && <p className="text-red-600 text-sm">{error}</p>}
@@ -236,6 +263,8 @@ export default function SchoolClosureEditor() {
                     periodStr = `${formatDateNL(closure.startDate)} – ${formatDateNL(closure.endDate)}`;
                   } else if (closure.type === 'half_day') {
                     periodStr = `${formatDateNL(closure.startDate)}, vrij vanaf ${closure.freeFromTime || '12:00'}`;
+                  } else if (closure.type === 'study_afternoon') {
+                    periodStr = `${formatDateNL(closure.startDate)}, ${closure.freeFromTime || '12:00'} – ${closure.freeToTime || '16:00'}`;
                   } else {
                     periodStr = formatDateNL(closure.startDate);
                   }

@@ -309,8 +309,8 @@ export default function Dashboard({ initialDate, onInitialDateUsed }) {
 
         // Check for school closures
         const closure = getClosureForDay(date);
-        const isFullClosure = closure && (closure.type === 'vacation' || closure.type === 'holiday');
-        const isHalfDay = closure && closure.type === 'half_day';
+        const isFullClosure = closure && (closure.type === 'vacation' || closure.type === 'holiday' || closure.type === 'study_day');
+        const isHalfDay = closure && (closure.type === 'half_day' || closure.type === 'study_afternoon');
 
         if (isFullClosure) {
           return { dayShort, dayDate, isFullClosure: true, closureName: closure.name, closureType: closure.type, changedGroups: [], unitSupportData: [], dayNote: null };
@@ -350,7 +350,7 @@ export default function Dashboard({ initialDate, onInitialDateUsed }) {
           .filter(Boolean);
 
         const dayNote = getDayNote(date);
-        return { dayShort, dayDate, changedGroups, unitSupportData, dayNote, isHalfDay, closureName: isHalfDay ? closure.name : null, freeFromTime: isHalfDay ? closure.freeFromTime : null };
+        return { dayShort, dayDate, changedGroups, unitSupportData, dayNote, isHalfDay, closureName: isHalfDay ? closure.name : null, closureType: isHalfDay ? closure.type : null, freeFromTime: isHalfDay ? closure.freeFromTime : null, freeToTime: isHalfDay ? closure.freeToTime : null };
       });
 
       const dateRange = `${capitalize(format(wkDates[0], 'd MMMM', { locale: nl }))} t/m ${format(wkDates[4], 'd MMMM yyyy', { locale: nl })}`;
@@ -358,17 +358,21 @@ export default function Dashboard({ initialDate, onInitialDateUsed }) {
       const hasAnySupport = daysData.some(d => d.unitSupportData.length > 0);
       const hasAnyNotes = daysData.some(d => d.dayNote);
 
-      const columns = daysData.map(({ dayShort, dayDate, changedGroups, unitSupportData, dayNote, isFullClosure: dayFullClosure, closureName, closureType, isHalfDay: dayHalfDay, freeFromTime }) => {
+      const columns = daysData.map(({ dayShort, dayDate, changedGroups, unitSupportData, dayNote, isFullClosure: dayFullClosure, closureName, closureType, isHalfDay: dayHalfDay, freeFromTime, freeToTime }) => {
         let content = '';
         if (dayFullClosure) {
+          const typeLabel = closureType === 'vacation' ? 'Vakantie' : closureType === 'study_day' ? 'Studiedag' : 'Feestdag';
           content += `<div style="text-align:center;padding:16px 4px;color:#9ca3af;">`;
           content += `<div style="font-size:18px;margin-bottom:4px;">📅</div>`;
           content += `<div style="font-weight:600;font-size:10px;">${closureName}</div>`;
-          content += `<div style="font-size:9px;color:#b0b0b0;margin-top:2px;">${closureType === 'vacation' ? 'Vakantie' : 'Feestdag'}</div>`;
+          content += `<div style="font-size:9px;color:#b0b0b0;margin-top:2px;">${typeLabel}</div>`;
           content += `</div>`;
         } else {
           if (dayHalfDay) {
-            content += `<div style="background:#fef3c7;border:1px solid #fde68a;border-radius:4px;padding:3px 6px;font-size:9px;color:#92400e;font-weight:600;margin-bottom:8px;">⏰ ${closureName} — vrij vanaf ${freeFromTime}</div>`;
+            const timeStr = closureType === 'study_afternoon'
+              ? `${closureName} — ${freeFromTime} – ${freeToTime}`
+              : `${closureName} — vrij vanaf ${freeFromTime}`;
+            content += `<div style="background:#fef3c7;border:1px solid #fde68a;border-radius:4px;padding:3px 6px;font-size:9px;color:#92400e;font-weight:600;margin-bottom:8px;">⏰ ${timeStr}</div>`;
           }
           if (changedGroups.length === 0) {
             content += `<div style="color:#94a3b8;font-size:9px;font-style:italic;margin-bottom:8px;">Geen wisselingen</div>`;
@@ -671,7 +675,7 @@ export default function Dashboard({ initialDate, onInitialDateUsed }) {
                     <CalendarOff className="w-6 h-6 text-gray-300 mx-auto mb-1" />
                     <div className="text-sm font-medium text-gray-400">{closure.name}</div>
                     <div className="text-xs text-gray-300 mt-0.5">
-                      {closure.type === 'vacation' ? 'Vakantie' : 'Feestdag'}
+                      {closure.type === 'vacation' ? 'Vakantie' : closure.type === 'study_day' ? 'Studiedag' : 'Feestdag'}
                     </div>
                   </div>
                 ) : (
@@ -679,9 +683,16 @@ export default function Dashboard({ initialDate, onInitialDateUsed }) {
                 {/* Group cards */}
                 <div className="p-2 space-y-1">
                   {isHalfDay && (
-                    <div className="mb-1 px-2 py-1 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-700 font-medium flex items-center gap-1">
+                    <div className={`mb-1 px-2 py-1 rounded-lg text-xs font-medium flex items-center gap-1 ${
+                      closure.type === 'study_afternoon'
+                        ? 'bg-cyan-50 border border-cyan-200 text-cyan-700'
+                        : 'bg-amber-50 border border-amber-200 text-amber-700'
+                    }`}>
                       <Clock className="w-3 h-3" />
-                      {closure.name} — vrij vanaf {closure.freeFromTime}
+                      {closure.type === 'study_afternoon'
+                        ? `${closure.name} — ${closure.freeFromTime} – ${closure.freeToTime}`
+                        : `${closure.name} — vrij vanaf ${closure.freeFromTime}`
+                      }
                     </div>
                   )}
                   {[...groups].sort((a, b) => a.name.localeCompare(b.name, 'nl')).map(group => {

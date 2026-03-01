@@ -654,9 +654,9 @@ export function getClosureForDate(schoolClosures, dateStr) {
 }
 
 /**
- * Check if a date is a full closure (vacation or holiday).
+ * Check if a date is a full closure (vacation, holiday or study day).
  */
 export function isFullClosureDate(schoolClosures, dateStr) {
   const closure = getClosureForDate(schoolClosures, dateStr);
-  return closure && (closure.type === 'vacation' || closure.type === 'holiday');
+  return closure && (closure.type === 'vacation' || closure.type === 'holiday' || closure.type === 'study_day');
 }

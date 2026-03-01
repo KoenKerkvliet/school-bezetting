@@ -308,6 +308,7 @@ export function dbSchoolClosureToApp(db) {
     startDate: db.start_date,
     endDate: db.end_date,
     freeFromTime: db.free_from_time || null,
+    freeToTime: db.free_to_time || null,
   }
 }
 
@@ -319,6 +320,7 @@ export function appSchoolClosureToDb(app, orgId) {
     start_date: app.startDate,
     end_date: app.endDate,
     free_from_time: app.freeFromTime || null,
+    free_to_time: app.freeToTime || null,
     organization_id: orgId,
   }
 }
