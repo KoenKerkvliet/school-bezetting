@@ -260,7 +260,7 @@ export default function Dashboard({ initialDate, onInitialDateUsed }) {
     const schedUnitId = staffMember?.schedule?.[dayKey]?.unitId;
     if (newUnitId === schedUnitId && existingOverride) {
       // Moving back to original — just delete the override
-      dispatch({ type: 'DELETE_UNIT_OVERRIDE', payload: existingOverride.id });
+      dispatch({ type: 'DELETE_UNIT_OVERRIDE', payload: { id: existingOverride.id, staffId, date: dateStr } });
     } else if (newUnitId !== schedUnitId || !existingOverride) {
       dispatch({
         type: 'SET_UNIT_OVERRIDE',
@@ -276,9 +276,10 @@ export default function Dashboard({ initialDate, onInitialDateUsed }) {
   }
 
   function handleUnitMoveReset(staffId, date) {
+    const dateStr = formatLocalDate(date);
     const existingOverride = getUnitOverride(staffId, date);
     if (existingOverride) {
-      dispatch({ type: 'DELETE_UNIT_OVERRIDE', payload: existingOverride.id });
+      dispatch({ type: 'DELETE_UNIT_OVERRIDE', payload: { id: existingOverride.id, staffId, date: dateStr } });
     }
     setUnitMovePopup(null);
   }

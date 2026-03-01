@@ -9,96 +9,26 @@
       "Admin: volledige controle binnen eigen school, kan gebruikers beheren",
       "Planner: planning, vervangers, afwezigheden, notities en PDF — geen collega/groep CRUD",
       "Viewer: alleen-lezen toegang met PDF export",
-      "Instellingen-menu verborgen voor Planner en Viewer",
-      "Dashboard acties (vervanging, notities, unit-verplaatsing) afgeschermd per rol",
-      "Collega's pagina: menu aangepast per rol (Planner: alleen afwezigheden)",
-      "Afwezigheid-pagina: verwijderknop verborgen voor Viewer",
-      "Edge Functions: laatste admin/super admin bescherming verbeterd",
-      "Backward-compatible: bestaande Editor-rol wordt automatisch als Planner behandeld"
-    ]
-  },
-  {
-    "version": "1.4.0",
-    "date": "2026-03-01",
-    "type": "minor",
-    "changes": [
+      "Dashboard acties, collega's pagina en afwezigheidspagina afgeschermd per rol",
       "Unit-verplaatsing: klik op een collega in Ondersteuning om deze voor één dag naar een andere unit te verplaatsen",
-      "Verplaatsingen zijn dag-specifiek en wijzigen het vaste werkrooster niet",
       "Verplaatste collega's worden gemarkeerd met ↪ en amber kleur",
-      "Onderwijsondersteuners sectie hersteld op de collega's pagina",
-      "Groepen worden nu alfabetisch gesorteerd binnen units in dagdetail"
-    ]
-  },
-  {
-    "version": "1.3.2",
-    "date": "2026-03-01",
-    "type": "patch",
-    "changes": [
-      "Beschikbaar hernoemd naar Ondersteuning in kalender en dagdetail",
-      "Ondersteuning gegroepeerd per unit (net als in PDF afdruk)"
-    ]
-  },
-  {
-    "version": "1.3.1",
-    "date": "2026-03-01",
-    "type": "patch",
-    "changes": [
-      "Dagnotities worden nu ook getoond op de PDF weekoverzicht afdruk"
-    ]
-  },
-  {
-    "version": "1.3.0",
-    "date": "2026-03-01",
-    "type": "minor",
-    "changes": [
-      "Dagnotities: voeg handmatig notities toe per dag in de weekkalender",
-      "Notities zichtbaar onderaan elke dagkolom en in het dagdetail-venster",
-      "Notities worden gesynchroniseerd via Supabase (day_notes tabel vereist)",
+      "Ondersteuning gegroepeerd per unit in kalender en dagdetail",
+      "Dagnotities: voeg notities toe per dag in weekkalender en PDF afdruk",
       "Changelog systeem met automatisch versienummer in sidebar"
     ]
   },
   {
     "version": "1.2.2",
     "date": "2026-02-28",
-    "type": "patch",
-    "changes": [
-      "PDF: hele-dag invallers worden niet meer dubbel getoond bij ondersteuning",
-      "PDF: rol verwijderd achter naam in ondersteuning-sectie",
-      "\"Onderwijs Ondersteuner\" hernoemd naar \"Onderwijsondersteuner\""
-    ]
-  },
-  {
-    "version": "1.2.1",
-    "date": "2026-02-28",
-    "type": "patch",
-    "changes": [
-      "Versienummer toegevoegd onderaan de sidebar met link naar changelog",
-      "Changelog pagina aangemaakt",
-      "PDF weekoverzicht uitgebreid met ondersteuning per unit"
-    ]
-  },
-  {
-    "version": "1.2.0",
-    "date": "2026-02-28",
     "type": "minor",
     "changes": [
       "Instellingen-menu opent nu als flyout rechts van de sidebar",
-      "Profiel: wachtwoord wijzigen toegevoegd",
-      "Profiel: gevarenzone met account verwijderen (typ VERWIJDER om te bevestigen)",
+      "Profiel: wachtwoord wijzigen en gevarenzone met account verwijderen",
       "Admin: gebruiker detail pagina met naam bewerken, rol/school wijzigen, wachtwoord resetten",
       "Admin: archiveren en verwijderen per gebruiker met bevestiging",
-      "Gebruikerstabel: instellingen-icoontje per gebruiker i.p.v. inline bewerken"
-    ]
-  },
-  {
-    "version": "1.1.1",
-    "date": "2026-02-27",
-    "type": "patch",
-    "changes": [
-      "Email verzending via designpixels.nl domein (tijdelijk)",
-      "Nieuwe gebruikers worden direct als geverifieerd aangemaakt",
-      "Eigen account kan niet meer verwijderd worden in admin panel",
-      "Laatste admin van een school kan niet verwijderd worden"
+      "Versienummer toegevoegd onderaan de sidebar met link naar changelog",
+      "PDF weekoverzicht uitgebreid met ondersteuning per unit",
+      "\"Onderwijs Ondersteuner\" hernoemd naar \"Onderwijsondersteuner\""
     ]
   },
   {
@@ -111,7 +41,8 @@
       "Uitnodigingsmail bij aanmaken nieuwe gebruiker via Emailit",
       "Test email pagina toegevoegd onder instellingen",
       "Gebruiker volledig verwijderen uit Auth + database (email herbruikbaar)",
-      "Logboek pagina met audit logging"
+      "Logboek pagina met audit logging",
+      "Laatste admin van een school kan niet verwijderd worden"
     ]
   },
   {

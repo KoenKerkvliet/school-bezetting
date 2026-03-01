@@ -12,12 +12,12 @@ const currentVersion = changelog[0]?.version || '1.0.0';
 const mainNavItems = [
   { id: 'dashboard', label: 'Dashboard',    icon: LayoutDashboard },
   { id: 'absence',   label: 'Afwezigheid',  icon: Calendar },
-  { id: 'staff',     label: "Collega's",    icon: Users },
   { id: 'logbook',   label: 'Logboek',      icon: ClipboardList },
+  { id: 'groups',    label: 'Groepen',      icon: BookOpen, adminOnly: true },
+  { id: 'staff',     label: "Collega's",    icon: Users },
 ];
 
 const settingsItems = [
-  { id: 'groups', label: 'Groepen', icon: BookOpen },
   { id: 'test-email', label: 'Test Email', icon: Mail },
 ];
 
@@ -29,7 +29,7 @@ export default function Navbar({ currentPage, setCurrentPage }) {
   const flyoutRef = useRef(null);
   const [flyoutPos, setFlyoutPos] = useState({ top: 0, left: 0 });
 
-  const settingsPageIds = ['groups', 'admin', 'test-email'];
+  const settingsPageIds = ['admin', 'test-email'];
   const isSettingsActive = settingsPageIds.includes(currentPage);
 
   // Calculate flyout position when opening
@@ -88,7 +88,9 @@ export default function Navbar({ currentPage, setCurrentPage }) {
 
       {/* Main navigation */}
       <nav className="flex-1 px-3 py-4 space-y-1">
-        {mainNavItems.map(({ id, label, icon: Icon }) => (
+        {mainNavItems
+          .filter(item => !item.adminOnly || isAdminOrAbove(role))
+          .map(({ id, label, icon: Icon }) => (
           <button
             key={id}
             onClick={() => handleNavClick(id)}

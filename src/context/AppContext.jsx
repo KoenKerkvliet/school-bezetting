@@ -102,7 +102,10 @@ function reducer(state, action) {
       return { ...state, unitOverrides: [...(state.unitOverrides || []), action.payload] };
     }
     case 'DELETE_UNIT_OVERRIDE':
-      return { ...state, unitOverrides: (state.unitOverrides || []).filter(o => o.id !== action.payload) };
+      // payload is { id, staffId, date } — filter by staffId+date for reliability
+      return { ...state, unitOverrides: (state.unitOverrides || []).filter(o =>
+        !(o.staffId === action.payload.staffId && o.date === action.payload.date)
+      ) };
 
     case 'SET_DAY_NOTE': {
       // Upsert: replace existing note for same date, or add new
@@ -450,16 +453,23 @@ async function writeToSupabase(orgId, action, userId) {
         const { error } = await supabase.from('staff_unit_overrides').update({ unit_id: row.unit_id }).eq('id', existingUO.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from('staff_unit_overrides').insert([row]);
+        // Omit id from insert — let Supabase generate a proper UUID
+        const { id: _localId, ...rowWithoutId } = row;
+        const { error } = await supabase.from('staff_unit_overrides').insert([rowWithoutId]);
         if (error) throw error;
       }
       audit('unit_override', p.id, { staffId: p.staffId, date: p.date, unitId: p.unitId });
       return;
     }
     case 'DELETE_UNIT_OVERRIDE': {
-      const { error } = await supabase.from('staff_unit_overrides').delete().eq('id', p);
+      // p is { id, staffId, date } — delete by staff_id + date for reliability
+      const { error } = await supabase.from('staff_unit_overrides')
+        .delete()
+        .eq('staff_id', p.staffId)
+        .eq('date', p.date)
+        .eq('organization_id', orgId);
       if (error) throw error;
-      audit('unit_override', p, {});
+      audit('unit_override', p.id, { staffId: p.staffId, date: p.date });
       return;
     }
 
