@@ -498,13 +498,13 @@ export default function Dashboard({ initialDate, onInitialDateUsed }) {
       {/* ── Calendar ── */}
       <div>
         {/* Header / navigation */}
-        <div className="flex items-center justify-between mb-5">
+        <div className="flex flex-col gap-3 mb-5 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
             <div>
-              <h1 className="text-xl font-bold text-gray-800">
+              <h1 className="text-lg sm:text-xl font-bold text-gray-800">
                 Weekoverzicht — Week {weekNum}
               </h1>
-              <p className="text-sm text-gray-500">
+              <p className="text-xs sm:text-sm text-gray-500">
                 {capitalize(format(weekDates[0], 'd MMMM', { locale: nl }))} t/m{' '}
                 {format(weekDates[4], 'd MMMM yyyy', { locale: nl })}
               </p>
@@ -542,7 +542,7 @@ export default function Dashboard({ initialDate, onInitialDateUsed }) {
         </div>
 
         {/* Legend */}
-        <div className="flex gap-4 mb-4 text-xs text-gray-500">
+        <div className="flex flex-wrap gap-2 sm:gap-4 mb-4 text-xs text-gray-500">
           <span className="flex items-center gap-1.5">
             <span className="w-3 h-3 rounded-sm bg-green-100 border border-green-300 inline-block" />
             Bemand
@@ -558,7 +558,7 @@ export default function Dashboard({ initialDate, onInitialDateUsed }) {
         </div>
 
         {/* 5-column week grid */}
-        <div className="grid grid-cols-5 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
           {weekDates.map((date, i) => {
             const today = isToday(date);
             const selected = selectedDay && isSameDay(selectedDay, date);

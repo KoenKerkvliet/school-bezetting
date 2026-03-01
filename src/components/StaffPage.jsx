@@ -636,7 +636,7 @@ function StaffModal({ data, mode, groups, units, onSave, onClose }) {
 
         <form onSubmit={handleSubmit} className="px-5 py-4 space-y-5">
           {/* Basic info */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Naam *</label>
               <input
@@ -666,7 +666,8 @@ function StaffModal({ data, mode, groups, units, onSave, onClose }) {
           {/* Weekly schedule */}
           <div>
             <h3 className="text-sm font-semibold text-gray-700 mb-3">Weekrooster</h3>
-            <div className="rounded-xl border border-gray-200 overflow-hidden">
+            <div className="overflow-x-auto -mx-5 px-5">
+            <div className="min-w-[500px] rounded-xl border border-gray-200 overflow-hidden">
               {/* Header row */}
               <div className="grid grid-cols-[90px_1fr_1fr_70px_140px] bg-gray-50 border-b border-gray-200 text-xs font-semibold text-gray-500 uppercase tracking-wide">
                 <div className="px-3 py-2">Dag</div>
@@ -775,6 +776,7 @@ function StaffModal({ data, mode, groups, units, onSave, onClose }) {
                   </div>
                 );
               })}
+            </div>
             </div>
           </div>
 

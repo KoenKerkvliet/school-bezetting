@@ -17,7 +17,7 @@ export default function SyncStatusBar() {
   if (!visible || !syncError) return null
 
   return (
-    <div className="fixed bottom-4 right-4 bg-white border border-red-200 rounded-lg shadow-lg p-3 text-sm max-w-xs z-40">
+    <div className="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-4 bg-white border border-red-200 rounded-lg shadow-lg p-3 text-sm max-w-xs z-40">
       <div className="flex items-start gap-2">
         <span className="text-red-600 font-semibold flex-shrink-0 mt-0.5">⚠️</span>
         <div className="flex-1">
