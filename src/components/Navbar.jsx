@@ -13,8 +13,8 @@ const currentVersion = changelog[0]?.version || '1.0.0';
 const mainNavItems = [
   { id: 'dashboard', label: 'Dashboard',    icon: LayoutDashboard },
   { id: 'absence',   label: 'Afwezigheid',  icon: Calendar },
-  { id: 'groups',    label: 'Groepen',      icon: BookOpen, adminOnly: true },
   { id: 'staff',     label: "Collega's",    icon: Users },
+  { id: 'groups',    label: 'Groepen',      icon: BookOpen, adminOnly: true },
   { id: 'logbook',   label: 'Logboek',      icon: ClipboardList },
 ];
 

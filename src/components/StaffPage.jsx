@@ -206,7 +206,9 @@ export default function StaffPage() {
             { label: 'Leerkrachten', roles: ['Leerkracht'], color: 'text-blue-700', bg: 'bg-blue-50', border: 'border-blue-200' },
             { label: 'Onderwijsondersteuners', roles: ['Onderwijsondersteuner', 'Onderwijs Ondersteuner'], color: 'text-green-700', bg: 'bg-green-50', border: 'border-green-200' },
             { label: 'Onderwijsassistenten', roles: ['Onderwijsassistent'], color: 'text-yellow-700', bg: 'bg-yellow-50', border: 'border-yellow-200' },
-            { label: 'Overige collega\'s', roles: ['Intern Begeleider', 'Directie', 'Overig'], color: 'text-gray-700', bg: 'bg-gray-50', border: 'border-gray-200' },
+            { label: 'MT', roles: ['MT', 'Directie'], color: 'text-indigo-700', bg: 'bg-indigo-50', border: 'border-indigo-200' },
+            { label: 'Conciërges', roles: ['Conciërge'], color: 'text-orange-700', bg: 'bg-orange-50', border: 'border-orange-200' },
+            { label: 'Overige collega\'s', roles: ['Intern Begeleider', 'Overig'], color: 'text-gray-700', bg: 'bg-gray-50', border: 'border-gray-200' },
           ].map(section => {
             const sectionStaff = [...staff]
               .filter(s => section.roles.includes(s.role))
@@ -546,11 +548,14 @@ function StaffModal({ data, mode, groups, units, onSave, onClose }) {
   }
 
   function setDayType(day, type) {
+    const needsTimes = ['group', 'unit', 'ambulant'].includes(type);
     setForm(f => ({
       ...f,
       schedule: {
         ...f.schedule,
-        [day]: { type },
+        [day]: needsTimes
+          ? { type, startTime: '08:00', endTime: '17:00' }
+          : { type },
       },
     }));
   }
