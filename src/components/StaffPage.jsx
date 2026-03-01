@@ -206,9 +206,8 @@ export default function StaffPage() {
             { label: 'Leerkrachten', roles: ['Leerkracht'], color: 'text-blue-700', bg: 'bg-blue-50', border: 'border-blue-200' },
             { label: 'Onderwijsondersteuners', roles: ['Onderwijsondersteuner', 'Onderwijs Ondersteuner'], color: 'text-green-700', bg: 'bg-green-50', border: 'border-green-200' },
             { label: 'Onderwijsassistenten', roles: ['Onderwijsassistent'], color: 'text-yellow-700', bg: 'bg-yellow-50', border: 'border-yellow-200' },
-            { label: 'MT', roles: ['MT', 'Directie'], color: 'text-indigo-700', bg: 'bg-indigo-50', border: 'border-indigo-200' },
-            { label: 'Conciërges', roles: ['Conciërge'], color: 'text-orange-700', bg: 'bg-orange-50', border: 'border-orange-200' },
-            { label: 'Overige collega\'s', roles: ['Intern Begeleider', 'Overig'], color: 'text-gray-700', bg: 'bg-gray-50', border: 'border-gray-200' },
+            { label: 'MT & Staf', roles: ['Directie', 'MT', 'Intern Begeleider', 'Conciërge'], color: 'text-indigo-700', bg: 'bg-indigo-50', border: 'border-indigo-200' },
+            { label: 'Overige collega\'s', roles: ['Overig'], color: 'text-gray-700', bg: 'bg-gray-50', border: 'border-gray-200' },
           ].map(section => {
             const sectionStaff = [...staff]
               .filter(s => section.roles.includes(s.role))
@@ -454,14 +453,17 @@ export default function StaffPage() {
 
 function StaffMenu({ memberId, isOpen, onToggle, onClose, onAbsence, onTimeAbsence, onEdit, onDelete }) {
   const btnRef = useRef(null);
-  const [pos, setPos] = useState({ top: 0, right: 0 });
+  const [pos, setPos] = useState({ top: 0, right: 0, openUp: false });
 
   useEffect(() => {
     if (isOpen && btnRef.current) {
       const rect = btnRef.current.getBoundingClientRect();
+      const menuHeight = 200; // approximate max menu height
+      const openUp = rect.bottom + menuHeight > window.innerHeight;
       setPos({
-        top: rect.bottom + 4,
+        top: openUp ? rect.top : rect.bottom + 4,
         right: window.innerWidth - rect.right,
+        openUp,
       });
     }
   }, [isOpen]);
@@ -482,7 +484,10 @@ function StaffMenu({ memberId, isOpen, onToggle, onClose, onAbsence, onTimeAbsen
           <div className="fixed inset-0 z-40" onClick={onClose} />
           <div
             className="fixed z-50 bg-white rounded-lg shadow-lg border border-gray-200 py-1 w-52"
-            style={{ top: pos.top, right: pos.right }}
+            style={pos.openUp
+              ? { bottom: window.innerHeight - pos.top + 4, right: pos.right }
+              : { top: pos.top, right: pos.right }
+            }
           >
             <button
               onClick={onAbsence}
