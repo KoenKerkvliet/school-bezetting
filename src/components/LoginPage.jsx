@@ -72,9 +72,7 @@ export default function LoginPage() {
       <div className="w-full max-w-md">
         {/* Logo/Header */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-600 rounded-lg mb-4">
-            <span className="text-white text-2xl font-bold">📅</span>
-          </div>
+          <img src="/favicon.svg" alt="School Bezetting" className="w-16 h-16 mx-auto mb-4 rounded-xl shadow-lg" />
           <h1 className="text-3xl font-bold text-gray-900">School Bezetting</h1>
           <p className="text-gray-600 mt-2">Planning- en bezettingssysteem</p>
         </div>

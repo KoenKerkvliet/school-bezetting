@@ -1,8 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
-  LayoutDashboard, BookOpen, Users, Calendar, GraduationCap,
+  LayoutDashboard, BookOpen, Users, Calendar,
   Settings, LogOut, User, Shield, ClipboardList, Mail,
 } from 'lucide-react';
+import logoImg from '/favicon.svg';
 import { useAuth } from '../context/AuthContext';
 import { isAdminOrAbove } from '../utils/roles';
 import changelog from '../changelog.json';
@@ -12,9 +13,9 @@ const currentVersion = changelog[0]?.version || '1.0.0';
 const mainNavItems = [
   { id: 'dashboard', label: 'Dashboard',    icon: LayoutDashboard },
   { id: 'absence',   label: 'Afwezigheid',  icon: Calendar },
-  { id: 'logbook',   label: 'Logboek',      icon: ClipboardList },
   { id: 'groups',    label: 'Groepen',      icon: BookOpen, adminOnly: true },
   { id: 'staff',     label: "Collega's",    icon: Users },
+  { id: 'logbook',   label: 'Logboek',      icon: ClipboardList },
 ];
 
 const settingsItems = [
@@ -78,7 +79,7 @@ export default function Navbar({ currentPage, setCurrentPage }) {
       {/* Logo / App name */}
       <div className="px-4 py-5 border-b border-slate-700">
         <div className="flex items-center gap-2.5">
-          <GraduationCap className="w-7 h-7 text-blue-400" />
+          <img src={logoImg} alt="School Bezetting" className="w-8 h-8 rounded-lg" />
           <div>
             <div className="font-bold text-sm leading-tight">School</div>
             <div className="font-bold text-sm leading-tight text-blue-400">Bezetting</div>
@@ -128,7 +129,7 @@ export default function Navbar({ currentPage, setCurrentPage }) {
             {settingsOpen && (
               <div
                 ref={flyoutRef}
-                className="fixed z-50 bg-white rounded-lg shadow-xl border border-gray-200 py-2 min-w-[180px]"
+                className="fixed z-[9999] bg-white rounded-lg shadow-xl border border-gray-200 py-2 min-w-[180px]"
                 style={{ top: flyoutPos.top, left: flyoutPos.left }}
               >
                 {settingsItems.map(({ id, label, icon: Icon }) => (
