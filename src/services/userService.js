@@ -256,21 +256,53 @@ export async function disableUser(userId, organizationId) {
 }
 
 /**
- * Get audit logs for organization (admin only)
+ * Get paginated audit logs for organization
  * @param {string} organizationId
- * @param {number} limit
- * @returns {Promise<array>}
+ * @param {{ page?: number, pageSize?: number }} options
+ * @returns {Promise<{ data: array, totalCount: number }>}
  */
-export async function getAuditLogs(organizationId, limit = 100) {
-  const { data, error } = await supabase
+export async function getAuditLogs(organizationId, { page = 0, pageSize = 50 } = {}) {
+  const from = page * pageSize
+  const to = from + pageSize - 1
+
+  const { data, error, count } = await supabase
     .from('audit_logs')
-    .select('*, users(first_name, last_name, email)')
+    .select('*, users(first_name, last_name, email)', { count: 'exact' })
     .eq('organization_id', organizationId)
     .order('created_at', { ascending: false })
-    .limit(limit)
+    .range(from, to)
 
   if (error) throw new Error(error.message)
-  return data || []
+  return { data: data || [], totalCount: count || 0 }
+}
+
+/**
+ * Delete all audit logs for an organization (Super Admin only)
+ * @param {string} organizationId
+ */
+export async function clearAuditLogs(organizationId) {
+  const { error } = await supabase
+    .from('audit_logs')
+    .delete()
+    .eq('organization_id', organizationId)
+  if (error) throw new Error(error.message)
+}
+
+/**
+ * Delete audit logs older than the retention period
+ * @param {string} organizationId
+ * @param {number} retentionMonths — records older than this are deleted
+ */
+export async function cleanupOldAuditLogs(organizationId, retentionMonths) {
+  const cutoffDate = new Date()
+  cutoffDate.setMonth(cutoffDate.getMonth() - retentionMonths)
+
+  const { error } = await supabase
+    .from('audit_logs')
+    .delete()
+    .eq('organization_id', organizationId)
+    .lt('created_at', cutoffDate.toISOString())
+  if (error) console.warn('[Audit] Cleanup failed:', error.message)
 }
 
 /**

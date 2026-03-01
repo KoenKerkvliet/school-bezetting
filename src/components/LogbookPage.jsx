@@ -1,9 +1,12 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { format } from 'date-fns';
 import { nl } from 'date-fns/locale';
-import { ClipboardList, RefreshCw, AlertCircle, Search, Filter } from 'lucide-react';
+import { ClipboardList, RefreshCw, AlertCircle, Search, Filter, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { getAuditLogs } from '../services/userService';
+import { getAuditLogs, clearAuditLogs, cleanupOldAuditLogs } from '../services/userService';
+import { isSuperAdmin } from '../utils/roles';
+
+const PAGE_SIZE = 50;
 
 // Human-readable action labels (Dutch)
 const ACTION_LABELS = {
@@ -55,31 +58,69 @@ function getActionColor(action) {
 }
 
 export default function LogbookPage() {
-  const { organizationId } = useAuth();
+  const { organizationId, role, orgSettings } = useAuth();
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [filterAction, setFilterAction] = useState('all');
+  const [page, setPage] = useState(0);
+  const [totalCount, setTotalCount] = useState(0);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [clearing, setClearing] = useState(false);
+  const cleanupDoneRef = useRef(false);
 
-  const loadLogs = useCallback(async () => {
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+
+  const loadLogs = useCallback(async (targetPage = 0) => {
     if (!organizationId) return;
     try {
       setLoading(true);
       setError('');
-      const data = await getAuditLogs(organizationId, 500);
-      setLogs(data);
+
+      // Auto-cleanup: run once per session
+      if (!cleanupDoneRef.current) {
+        cleanupDoneRef.current = true;
+        const retentionMonths = orgSettings.logbookRetentionMonths || 3;
+        // Fire and forget — don't block page load
+        cleanupOldAuditLogs(organizationId, retentionMonths).catch(() => {});
+      }
+
+      const result = await getAuditLogs(organizationId, { page: targetPage, pageSize: PAGE_SIZE });
+      setLogs(result.data);
+      setTotalCount(result.totalCount);
     } catch (err) {
       console.error('Error loading audit logs:', err);
       setError(err.message);
     } finally {
       setLoading(false);
     }
-  }, [organizationId]);
+  }, [organizationId, orgSettings.logbookRetentionMonths]);
 
   useEffect(() => {
-    loadLogs();
-  }, [loadLogs]);
+    loadLogs(page);
+  }, [page, loadLogs]);
+
+  // Reset page when filters change
+  useEffect(() => {
+    setPage(0);
+  }, [searchTerm, filterAction]);
+
+  const handleClearLogs = async () => {
+    if (!organizationId) return;
+    try {
+      setClearing(true);
+      await clearAuditLogs(organizationId);
+      setShowClearConfirm(false);
+      setPage(0);
+      await loadLogs(0);
+    } catch (err) {
+      console.error('Error clearing audit logs:', err);
+      setError(err.message);
+    } finally {
+      setClearing(false);
+    }
+  };
 
   const getUserName = (log) => {
     if (log.users) {
@@ -120,7 +161,7 @@ export default function LogbookPage() {
   // Get unique action types for filter dropdown
   const uniqueActions = [...new Set(logs.map(l => l.action))].sort();
 
-  // Filter logs
+  // Client-side filter on current page
   const filteredLogs = logs.filter(log => {
     const matchesSearch = searchTerm === '' ||
       getUserName(log).toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -134,17 +175,63 @@ export default function LogbookPage() {
 
   return (
     <div className="max-w-5xl mx-auto">
+      {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-3xl font-bold text-gray-800">Logboek</h1>
-        <button
-          onClick={loadLogs}
-          disabled={loading}
-          className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
-        >
-          <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-          Vernieuwen
-        </button>
+        <div className="flex items-center gap-2">
+          {isSuperAdmin(role) && (
+            <button
+              onClick={() => setShowClearConfirm(true)}
+              disabled={loading || totalCount === 0}
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-red-700 bg-white border border-red-300 rounded-lg hover:bg-red-50 transition-colors disabled:opacity-50"
+            >
+              <Trash2 className="w-4 h-4" />
+              <span className="hidden sm:inline">Logboek wissen</span>
+            </button>
+          )}
+          <button
+            onClick={() => loadLogs(page)}
+            disabled={loading}
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+          >
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            Vernieuwen
+          </button>
+        </div>
       </div>
+
+      {/* Clear confirmation dialog */}
+      {showClearConfirm && (
+        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <p className="text-sm font-medium text-red-800">
+                Weet je zeker dat je het volledige logboek wilt wissen?
+              </p>
+              <p className="text-sm text-red-600 mt-1">
+                Alle {totalCount} logboekregels worden permanent verwijderd. Dit kan niet ongedaan worden.
+              </p>
+              <div className="flex gap-3 mt-3">
+                <button
+                  onClick={handleClearLogs}
+                  disabled={clearing}
+                  className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50"
+                >
+                  {clearing ? 'Bezig met wissen...' : 'Ja, alles wissen'}
+                </button>
+                <button
+                  onClick={() => setShowClearConfirm(false)}
+                  disabled={clearing}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Annuleren
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-3 mb-6">
@@ -235,10 +322,35 @@ export default function LogbookPage() {
             </table>
           </div>
 
-          {/* Footer with count */}
-          <div className="px-4 py-3 bg-gray-50 border-t border-gray-200 text-sm text-gray-500">
-            {filteredLogs.length} {filteredLogs.length === 1 ? 'regel' : 'regels'}
-            {filteredLogs.length !== logs.length && ` (van ${logs.length} totaal)`}
+          {/* Pagination footer */}
+          <div className="px-4 py-3 bg-gray-50 border-t border-gray-200 flex items-center justify-between">
+            <p className="text-sm text-gray-500">
+              {totalCount} {totalCount === 1 ? 'regel' : 'regels'} totaal
+            </p>
+
+            {totalPages > 1 && (
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setPage(p => Math.max(0, p - 1))}
+                  disabled={page === 0}
+                  className="p-1.5 rounded-lg border border-gray-300 bg-white hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                >
+                  <ChevronLeft className="w-4 h-4 text-gray-600" />
+                </button>
+
+                <span className="text-sm text-gray-600 min-w-[100px] text-center">
+                  Pagina {page + 1} van {totalPages}
+                </span>
+
+                <button
+                  onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
+                  disabled={page >= totalPages - 1}
+                  className="p-1.5 rounded-lg border border-gray-300 bg-white hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                >
+                  <ChevronRight className="w-4 h-4 text-gray-600" />
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}

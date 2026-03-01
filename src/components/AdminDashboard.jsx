@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { isAdminOrAbove, isSuperAdmin } from '../utils/roles'
-import { BarChart3 } from 'lucide-react'
+import { BarChart3, ClipboardList } from 'lucide-react'
 import UserManagementPage from './UserManagementPage'
 import SchoolManagementPage from './SchoolManagementPage'
 import TestEmailPage from './TestEmailPage'
@@ -183,6 +183,20 @@ export default function AdminDashboard({ onBack, onNavigateToUserDetail, embedde
                 </div>
               </div>
             )}
+
+            {/* Logboek instellingen — Admin + Super Admin */}
+            <div className="mt-8">
+              <h3 className="text-lg font-bold text-gray-900 mb-4">Instellingen</h3>
+              <div className="bg-white rounded-lg border border-gray-200 divide-y divide-gray-100">
+                <RetentionSetting
+                  icon={ClipboardList}
+                  label="Logboek bewaartermijn"
+                  description="Na deze periode worden logboekregels automatisch verwijderd."
+                  value={orgSettings.logbookRetentionMonths || 3}
+                  onChange={(val) => updateOrgSetting('logbookRetentionMonths', val)}
+                />
+              </div>
+            </div>
           </div>
         )}
 
@@ -215,6 +229,30 @@ function FeatureToggle({ icon: Icon, label, description, enabled, onChange }) {
       >
         <span className={`inline-block h-4 w-4 rounded-full bg-white transition-transform shadow-sm ${enabled ? 'translate-x-6' : 'translate-x-1'}`} />
       </button>
+    </div>
+  )
+}
+
+function RetentionSetting({ icon: Icon, label, description, value, onChange }) {
+  return (
+    <div className="flex items-center gap-4 px-5 py-4">
+      <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 bg-blue-100 text-blue-600">
+        <Icon className="w-5 h-5" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="font-medium text-sm text-gray-900">{label}</div>
+        <div className="text-xs text-gray-500 mt-0.5">{description}</div>
+      </div>
+      <select
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 flex-shrink-0"
+      >
+        <option value={1}>1 maand</option>
+        <option value={3}>3 maanden</option>
+        <option value={6}>6 maanden</option>
+        <option value={12}>12 maanden</option>
+      </select>
     </div>
   )
 }
