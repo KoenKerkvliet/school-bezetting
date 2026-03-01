@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Plus, Pencil, Trash2, X, Clock, BookOpen, Layers } from 'lucide-react';
-import { useApp, GROUP_COLORS, generateId, DAYS, DAY_LABELS_SHORT } from '../context/AppContext.jsx';
+import { useApp, GROUP_COLORS, generateId, DAYS, DAY_LABELS_SHORT, GRADE_LEVELS } from '../context/AppContext.jsx';
 
 // ── Default form values ────────────────────────────────────────────────────
 
@@ -27,6 +27,7 @@ function detectBreakType(breakVal, presets, fallback) {
 const defaultGroupForm = {
   name: '',
   unitId: '',
+  gradeLevel: null,
   startTime: '08:30',
   endTime: '15:30',
   shortBreakType: 'laat',
@@ -188,11 +189,18 @@ export default function GroupsPage() {
                       <div className="flex items-start justify-between mb-3">
                         <div>
                           <h3 className="font-bold text-gray-900">{group.name}</h3>
-                          {unit && (
-                            <span className="text-xs text-blue-600 bg-blue-50 rounded px-1.5 py-0.5 mt-1 inline-block">
-                              {unit.name}
-                            </span>
-                          )}
+                          <div className="flex gap-1 mt-1 flex-wrap">
+                            {group.gradeLevel && (
+                              <span className="text-xs text-indigo-600 bg-indigo-50 rounded px-1.5 py-0.5 inline-block">
+                                Lj {group.gradeLevel}
+                              </span>
+                            )}
+                            {unit && (
+                              <span className="text-xs text-blue-600 bg-blue-50 rounded px-1.5 py-0.5 inline-block">
+                                {unit.name}
+                              </span>
+                            )}
+                          </div>
                         </div>
                         <div className="flex gap-1">
                           <button
@@ -328,6 +336,7 @@ export default function GroupsPage() {
           data={groupModal.data}
           mode={groupModal.mode}
           units={units}
+          gradeLevelSchedules={state.gradeLevelSchedules}
           onSave={saveGroup}
           onClose={() => setGroupModal(null)}
         />
@@ -349,11 +358,30 @@ export default function GroupsPage() {
 
 // ── Group Modal ────────────────────────────────────────────────────────────
 
-function GroupModal({ data, mode, units, onSave, onClose }) {
+function GroupModal({ data, mode, units, gradeLevelSchedules, onSave, onClose }) {
   const [form, setForm] = useState(data);
+  const [autoPopulated, setAutoPopulated] = useState(false);
 
   function set(key, value) {
     setForm(f => ({ ...f, [key]: value }));
+  }
+
+  function handleGradeLevelChange(value) {
+    const gl = value ? parseInt(value) : null;
+    setForm(f => {
+      const updated = { ...f, gradeLevel: gl };
+      if (gl) {
+        const schedule = (gradeLevelSchedules || []).find(s => s.gradeLevel === gl);
+        if (schedule?.schedule?.monday) {
+          updated.startTime = schedule.schedule.monday.startTime;
+          updated.endTime = schedule.schedule.monday.endTime;
+          setAutoPopulated(true);
+        }
+      } else {
+        setAutoPopulated(false);
+      }
+      return updated;
+    });
   }
 
   function setShortBreakType(type) {
@@ -385,6 +413,24 @@ function GroupModal({ data, mode, units, onSave, onClose }) {
             required
             autoFocus
           />
+        </div>
+
+        {/* Grade Level */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Leerjaar</label>
+          <select
+            value={form.gradeLevel || ''}
+            onChange={e => handleGradeLevelChange(e.target.value)}
+            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="">— Geen leerjaar —</option>
+            {GRADE_LEVELS.map(gl => (
+              <option key={gl} value={gl}>Leerjaar {gl}</option>
+            ))}
+          </select>
+          {autoPopulated && (
+            <p className="text-xs text-blue-600 mt-1">Tijden overgenomen van leerjaar {form.gradeLevel}</p>
+          )}
         </div>
 
         {/* Unit */}

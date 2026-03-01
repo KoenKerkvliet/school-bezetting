@@ -20,6 +20,7 @@ const emptyState = {
   staffDateAssignments: [], // Date-specific staff assignments (replacements, overrides)
   unitOverrides: [], // Day-specific unit reassignments { id, staffId, date, unitId }
   dayNotes: [], // Notes per day { id, date, text }
+  gradeLevelSchedules: [], // Lesson times per grade level per day
 };
 
 function reducer(state, action) {
@@ -123,6 +124,9 @@ function reducer(state, action) {
     case 'DELETE_DAY_NOTE':
       return { ...state, dayNotes: (state.dayNotes || []).filter(n => n.id !== action.payload) };
 
+    case 'SET_GRADE_LEVEL_SCHEDULES':
+      return { ...state, gradeLevelSchedules: action.payload };
+
     default:
       return state;
   }
@@ -158,6 +162,10 @@ export function AppProvider({ children }) {
           const hasData = (data.groups?.length > 0 || data.staff?.length > 0);
 
           if (hasData) {
+            // Grade level schedules come from localStorage (not Supabase yet)
+            const savedLocal = localStorage.getItem('schoolPlanning');
+            const localGLS = savedLocal ? (JSON.parse(savedLocal).gradeLevelSchedules || []) : [];
+
             dispatch({
               type: 'SET_INITIAL_STATE',
               payload: {
@@ -169,6 +177,7 @@ export function AppProvider({ children }) {
                 staffDateAssignments: data.staffDateAssignments || [],
                 unitOverrides: data.unitOverrides || [],
                 dayNotes: data.dayNotes || [],
+                gradeLevelSchedules: localGLS.length > 0 ? localGLS : DEFAULT_GRADE_LEVEL_SCHEDULES,
               }
             });
             console.log('[AppContext] Loaded from Supabase:', data.groups?.length, 'groups,', data.staff?.length, 'staff');
@@ -200,6 +209,10 @@ export function AppProvider({ children }) {
         const saved = localStorage.getItem('schoolPlanning');
         if (saved) {
           const parsed = JSON.parse(saved);
+          // Seed grade level schedules defaults if not present
+          if (!parsed.gradeLevelSchedules || parsed.gradeLevelSchedules.length === 0) {
+            parsed.gradeLevelSchedules = DEFAULT_GRADE_LEVEL_SCHEDULES;
+          }
           dispatch({ type: 'SET_INITIAL_STATE', payload: parsed });
           console.log('[AppContext] Loaded from localStorage');
         }
@@ -495,6 +508,11 @@ async function writeToSupabase(orgId, action, userId) {
       return;
     }
 
+    case 'SET_GRADE_LEVEL_SCHEDULES':
+      // Grade level schedules are stored in localStorage only (Supabase table not yet created)
+      console.log('[Sync] Grade level schedules saved to localStorage (no Supabase sync yet)');
+      return;
+
     default:
       console.warn('[Sync] Unknown action type:', action.type);
   }
@@ -514,6 +532,33 @@ export const ROLES = ['Directie', 'MT', 'Intern Begeleider', 'Leerkracht', 'Onde
 
 export const ABSENCE_REASONS = ['Ziek', 'Studiedag', 'Verlof', 'Nascholing', 'Vergadering', 'Overig'];
 export const TIME_ABSENCE_REASONS = ['Bespreking', 'Vergadering', 'Overleg', 'Oudergesprek', 'Nascholing', 'Overig'];
+
+export const GRADE_LEVELS = [1, 2, 3, 4, 5, 6, 7, 8];
+
+function makeGradeSchedule(gradeLevel, startTime, endTime, wedEnd) {
+  return {
+    id: `grade-${gradeLevel}`,
+    gradeLevel,
+    schedule: {
+      monday:    { startTime, endTime },
+      tuesday:   { startTime, endTime },
+      wednesday: { startTime, endTime: wedEnd },
+      thursday:  { startTime, endTime },
+      friday:    { startTime, endTime },
+    },
+  };
+}
+
+export const DEFAULT_GRADE_LEVEL_SCHEDULES = [
+  makeGradeSchedule(1, '08:30', '14:00', '12:30'),
+  makeGradeSchedule(2, '08:30', '14:00', '12:30'),
+  makeGradeSchedule(3, '08:30', '15:00', '12:30'),
+  makeGradeSchedule(4, '08:30', '15:00', '12:30'),
+  makeGradeSchedule(5, '08:30', '15:00', '12:30'),
+  makeGradeSchedule(6, '08:30', '15:00', '12:30'),
+  makeGradeSchedule(7, '08:30', '15:00', '12:30'),
+  makeGradeSchedule(8, '08:30', '15:00', '12:30'),
+];
 
 export const GROUP_COLORS = [
   '#ef4444', '#f97316', '#eab308', '#22c55e',

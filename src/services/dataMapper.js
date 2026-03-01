@@ -56,6 +56,7 @@ export function dbGroupToApp(db) {
       thursday: true,
       friday: true,
     },
+    gradeLevel: db.grade_level || null,
   }
 }
 
@@ -79,6 +80,7 @@ export function appGroupToDb(app, orgId) {
       friday: true,
     },
     organization_id: orgId,
+    ...(app.gradeLevel ? { grade_level: app.gradeLevel } : {}),
   }
 }
 
