@@ -8,10 +8,9 @@ import Dashboard from './components/Dashboard.jsx';
 import AbsencePage from './components/AbsencePage.jsx';
 import GroupsPage from './components/GroupsPage.jsx';
 import StaffPage from './components/StaffPage.jsx';
-import AdminDashboard from './components/AdminDashboard.jsx';
 import ProfilePage from './components/ProfilePage.jsx';
 import LogbookPage from './components/LogbookPage.jsx';
-import TestEmailPage from './components/TestEmailPage.jsx';
+import SettingsPage from './components/SettingsPage.jsx';
 import UserDetailPage from './components/UserDetailPage.jsx';
 import ChangelogPage from './components/ChangelogPage.jsx';
 import SyncStatusBar from './components/SyncStatusBar.jsx';
@@ -35,7 +34,7 @@ function AppContent() {
 
   const handleBackFromUserDetail = () => {
     setSelectedUserId(null);
-    setCurrentPage('admin');
+    setCurrentPage('settings');
   };
 
   if (appLoading) {
@@ -71,8 +70,7 @@ function AppContent() {
           {currentPage === 'groups' && (isAdminOrAbove(role) ? <GroupsPage /> : <Dashboard initialDate={navigateDate} onInitialDateUsed={() => setNavigateDate(null)} />)}
           {currentPage === 'staff' && <StaffPage />}
           {currentPage === 'logbook' && <LogbookPage />}
-          {currentPage === 'test-email' && (isAdminOrAbove(role) ? <TestEmailPage /> : <Dashboard initialDate={navigateDate} onInitialDateUsed={() => setNavigateDate(null)} />)}
-          {currentPage === 'admin' && (isAdminOrAbove(role) ? <AdminDashboard onBack={() => setCurrentPage('dashboard')} onNavigateToUserDetail={handleNavigateToUserDetail} /> : <Dashboard initialDate={navigateDate} onInitialDateUsed={() => setNavigateDate(null)} />)}
+          {currentPage === 'settings' && (isAdminOrAbove(role) ? <SettingsPage onNavigateToUserDetail={handleNavigateToUserDetail} /> : <Dashboard initialDate={navigateDate} onInitialDateUsed={() => setNavigateDate(null)} />)}
           {currentPage === 'user-detail' && selectedUserId && (isAdminOrAbove(role) ? <UserDetailPage userId={selectedUserId} onBack={handleBackFromUserDetail} /> : <Dashboard initialDate={navigateDate} onInitialDateUsed={() => setNavigateDate(null)} />)}
           {currentPage === 'profile' && <ProfilePage />}
           {currentPage === 'changelog' && <ChangelogPage />}

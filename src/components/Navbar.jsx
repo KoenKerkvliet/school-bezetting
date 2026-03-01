@@ -1,7 +1,7 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React from 'react';
 import {
   LayoutDashboard, BookOpen, Users, Calendar,
-  Settings, LogOut, User, Shield, ClipboardList, Mail,
+  Settings, LogOut, User, ClipboardList,
 } from 'lucide-react';
 import logoImg from '/favicon.svg';
 import { useAuth } from '../context/AuthContext';
@@ -18,48 +18,9 @@ const mainNavItems = [
   { id: 'logbook',   label: 'Logboek',      icon: ClipboardList },
 ];
 
-const settingsItems = [
-  { id: 'test-email', label: 'Test Email', icon: Mail },
-];
-
 export default function Navbar({ currentPage, setCurrentPage }) {
   const { user, role, logout } = useAuth();
   const showSettings = isAdminOrAbove(role);
-  const [settingsOpen, setSettingsOpen] = useState(false);
-  const settingsBtnRef = useRef(null);
-  const flyoutRef = useRef(null);
-  const [flyoutPos, setFlyoutPos] = useState({ top: 0, left: 0 });
-
-  const settingsPageIds = ['admin', 'test-email'];
-  const isSettingsActive = settingsPageIds.includes(currentPage);
-
-  // Calculate flyout position when opening
-  useEffect(() => {
-    if (settingsOpen && settingsBtnRef.current) {
-      const rect = settingsBtnRef.current.getBoundingClientRect();
-      setFlyoutPos({
-        top: rect.top,
-        left: rect.right + 8,
-      });
-    }
-  }, [settingsOpen]);
-
-  // Close flyout on click outside
-  useEffect(() => {
-    if (!settingsOpen) return;
-
-    const handleClickOutside = (e) => {
-      if (
-        flyoutRef.current && !flyoutRef.current.contains(e.target) &&
-        settingsBtnRef.current && !settingsBtnRef.current.contains(e.target)
-      ) {
-        setSettingsOpen(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [settingsOpen]);
 
   const handleLogout = async () => {
     try {
@@ -67,11 +28,6 @@ export default function Navbar({ currentPage, setCurrentPage }) {
     } catch (err) {
       console.error('Logout error:', err);
     }
-  };
-
-  const handleNavClick = (id) => {
-    setCurrentPage(id);
-    setSettingsOpen(false);
   };
 
   return (
@@ -94,7 +50,7 @@ export default function Navbar({ currentPage, setCurrentPage }) {
           .map(({ id, label, icon: Icon }) => (
           <button
             key={id}
-            onClick={() => handleNavClick(id)}
+            onClick={() => setCurrentPage(id)}
             className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
               currentPage === id
                 ? 'bg-blue-600 text-white'
@@ -109,64 +65,9 @@ export default function Navbar({ currentPage, setCurrentPage }) {
 
       {/* Bottom section */}
       <div className="px-3 pb-4 space-y-1 border-t border-slate-700 pt-3">
-        {/* Settings toggle — only Admin and above */}
-        {showSettings && (
-          <>
-            <button
-              ref={settingsBtnRef}
-              onClick={() => setSettingsOpen(!settingsOpen)}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                isSettingsActive || settingsOpen
-                  ? 'bg-slate-700 text-white'
-                  : 'text-slate-300 hover:bg-slate-700 hover:text-white'
-              }`}
-            >
-              <Settings className="w-5 h-5 flex-shrink-0" />
-              <span className="flex-1 text-left">Instellingen</span>
-            </button>
-
-            {/* Settings flyout (positioned to the right) */}
-            {settingsOpen && (
-              <div
-                ref={flyoutRef}
-                className="fixed z-[9999] bg-white rounded-lg shadow-xl border border-gray-200 py-2 min-w-[180px]"
-                style={{ top: flyoutPos.top, left: flyoutPos.left }}
-              >
-                {settingsItems.map(({ id, label, icon: Icon }) => (
-                  <button
-                    key={id}
-                    onClick={() => handleNavClick(id)}
-                    className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors ${
-                      currentPage === id
-                        ? 'bg-blue-50 text-blue-700 font-medium'
-                        : 'text-gray-700 hover:bg-gray-100'
-                    }`}
-                  >
-                    <Icon className="w-4 h-4 flex-shrink-0" />
-                    {label}
-                  </button>
-                ))}
-
-                {/* Admin — for Admin and Super Admin */}
-                <button
-                  onClick={() => handleNavClick('admin')}
-                  className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors ${
-                    currentPage === 'admin'
-                      ? 'bg-blue-50 text-blue-700 font-medium'
-                      : 'text-gray-700 hover:bg-gray-100'
-                  }`}
-                >
-                  <Shield className="w-4 h-4 flex-shrink-0" />
-                  Admin
-                </button>
-              </div>
-            )}
-          </>
-        )}
-
         {/* Profile */}
         <button
-          onClick={() => handleNavClick('profile')}
+          onClick={() => setCurrentPage('profile')}
           className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
             currentPage === 'profile'
               ? 'bg-blue-600 text-white'
@@ -176,6 +77,21 @@ export default function Navbar({ currentPage, setCurrentPage }) {
           <User className="w-5 h-5 flex-shrink-0" />
           Profiel
         </button>
+
+        {/* Settings — only Admin and above */}
+        {showSettings && (
+          <button
+            onClick={() => setCurrentPage('settings')}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+              currentPage === 'settings'
+                ? 'bg-blue-600 text-white'
+                : 'text-slate-300 hover:bg-slate-700 hover:text-white'
+            }`}
+          >
+            <Settings className="w-5 h-5 flex-shrink-0" />
+            Instellingen
+          </button>
+        )}
 
         {/* Logout */}
         <button
@@ -190,7 +106,7 @@ export default function Navbar({ currentPage, setCurrentPage }) {
       {/* Version footer */}
       <div className="px-3 pb-3 pt-1 border-t border-slate-700">
         <button
-          onClick={() => handleNavClick('changelog')}
+          onClick={() => setCurrentPage('changelog')}
           className="w-full text-center text-xs text-slate-500 hover:text-slate-300 transition-colors"
         >
           v{currentVersion}

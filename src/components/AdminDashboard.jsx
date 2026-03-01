@@ -5,15 +5,15 @@ import UserManagementPage from './UserManagementPage'
 import SchoolManagementPage from './SchoolManagementPage'
 import * as organizationService from '../services/organizationService'
 
-export default function AdminDashboard({ onBack, onNavigateToUserDetail }) {
+export default function AdminDashboard({ onBack, onNavigateToUserDetail, embedded = false }) {
   const { role, organizationId, logout } = useAuth()
   const [activeTab, setActiveTab] = useState('overview')
   const [organization, setOrganization] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
-  // Only admins can access
-  if (!isAdminOrAbove(role)) {
+  // Only admins can access (skip check when embedded — parent handles it)
+  if (!embedded && !isAdminOrAbove(role)) {
     return (
       <div className="p-6 text-center">
         <p className="text-red-600 font-medium">Je hebt geen toegang tot het admin panel.</p>
