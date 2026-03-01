@@ -70,6 +70,7 @@ export default function Dashboard({ initialDate, onInitialDateUsed }) {
   const [selectedDay, setSelectedDay] = useState(null);
   const [selectedGroup, setSelectedGroup] = useState(null); // { group, date }
   const [unitMovePopup, setUnitMovePopup] = useState(null); // { staffId, staffName, date, currentUnitId, rect }
+  const [showPrintModal, setShowPrintModal] = useState(false);
 
   // Handle navigation from other pages (e.g. AbsencePage → specific day)
   useEffect(() => {
@@ -292,165 +293,173 @@ export default function Dashboard({ initialDate, onInitialDateUsed }) {
 
   // ── PDF generation ──────────────────────────────────────────────────────
 
-  function generateWeekPDF() {
-    // Build data: per day, groups with changes + unit support staff
-    const daysData = weekDates.map((date) => {
-      const dayKey = getDayKey(date);
-      const dayShort = capitalize(format(date, 'EEEE', { locale: nl }));
-      const dayDate = format(date, 'd MMM', { locale: nl });
+  function generateWeekPDF(startWeekOffset = 0, weekCount = 1) {
+    // Helper: build one week's data and HTML
+    function buildWeekBlock(wkDates, wkNum) {
+      const daysData = wkDates.map((date) => {
+        const dayKey = getDayKey(date);
+        const dayShort = capitalize(format(date, 'EEEE', { locale: nl }));
+        const dayDate = format(date, 'd MMM', { locale: nl });
 
-      const changedGroups = [...groups]
-        .sort((a, b) => a.name.localeCompare(b.name, 'nl'))
-        .filter(group => isGroupActiveOnDay(group, dayKey))
-        .map(group => {
-          const gs = getGroupStaff(group.id, date);
-          const unmanned = isGroupUnmanned(group.id, date);
-          const hasAbsentStaff = gs.some(s => s.absent);
-          const hasTimeAbsent = gs.some(s => !s.absent && s.timeAbsences?.length > 0);
-          const hasReplacement = gs.some(s => s.isReplacement);
-          const wholeDayStaffCount = gs.filter(s => !s.absent && !s.replacementStartTime).length;
-          const isOverstaffed = wholeDayStaffCount > 1;
-          const hasChanges = unmanned || hasAbsentStaff || hasTimeAbsent || hasReplacement || isOverstaffed;
-          if (!hasChanges) return null;
-          return { group, gs, unmanned };
-        })
-        .filter(Boolean);
+        const changedGroups = [...groups]
+          .sort((a, b) => a.name.localeCompare(b.name, 'nl'))
+          .filter(group => isGroupActiveOnDay(group, dayKey))
+          .map(group => {
+            const gs = getGroupStaff(group.id, date);
+            const unmanned = isGroupUnmanned(group.id, date);
+            const hasAbsentStaff = gs.some(s => s.absent);
+            const hasTimeAbsent = gs.some(s => !s.absent && s.timeAbsences?.length > 0);
+            const hasReplacement = gs.some(s => s.isReplacement);
+            const wholeDayStaffCount = gs.filter(s => !s.absent && !s.replacementStartTime).length;
+            const isOverstaffed = wholeDayStaffCount > 1;
+            const hasChanges = unmanned || hasAbsentStaff || hasTimeAbsent || hasReplacement || isOverstaffed;
+            if (!hasChanges) return null;
+            return { group, gs, unmanned };
+          })
+          .filter(Boolean);
 
-      // Collect staff IDs who are whole-day replacements (not available for support)
-      const dateStr = formatLocalDate(date);
-      const wholeDayReplacementIds = new Set(
-        (state.staffDateAssignments || [])
-          .filter(a => a.date === dateStr && !a.startTime)
-          .map(a => a.staffId)
-      );
+        const dateStr = formatLocalDate(date);
+        const wholeDayReplacementIds = new Set(
+          (state.staffDateAssignments || [])
+            .filter(a => a.date === dateStr && !a.startTime)
+            .map(a => a.staffId)
+        );
 
-      // Collect unit support staff per unit, excluding whole-day replacements
-      const unitSupportData = units
-        .map(unit => {
-          const unitStaff = getUnitStaff(unit.id, date)
-            .filter(s => !wholeDayReplacementIds.has(s.id));
-          if (unitStaff.length === 0) return null;
-          return { unit, unitStaff };
-        })
-        .filter(Boolean);
+        const unitSupportData = units
+          .map(unit => {
+            const unitStaff = getUnitStaff(unit.id, date)
+              .filter(s => !wholeDayReplacementIds.has(s.id));
+            if (unitStaff.length === 0) return null;
+            return { unit, unitStaff };
+          })
+          .filter(Boolean);
 
-      // Day note
-      const dayNote = getDayNote(date);
+        const dayNote = getDayNote(date);
+        return { dayShort, dayDate, changedGroups, unitSupportData, dayNote };
+      });
 
-      return { dayShort, dayDate, changedGroups, unitSupportData, dayNote };
-    });
+      const dateRange = `${capitalize(format(wkDates[0], 'd MMMM', { locale: nl }))} t/m ${format(wkDates[4], 'd MMMM yyyy', { locale: nl })}`;
+      const hasAnyChanges = daysData.some(d => d.changedGroups.length > 0);
+      const hasAnySupport = daysData.some(d => d.unitSupportData.length > 0);
+      const hasAnyNotes = daysData.some(d => d.dayNote);
 
-    const dateRange = `${capitalize(format(weekDates[0], 'd MMMM', { locale: nl }))} t/m ${format(weekDates[4], 'd MMMM yyyy', { locale: nl })}`;
-    const hasAnyChanges = daysData.some(d => d.changedGroups.length > 0);
-    const hasAnySupport = daysData.some(d => d.unitSupportData.length > 0);
-    const hasAnyNotes = daysData.some(d => d.dayNote);
-
-    // Build column content per day
-    const columns = daysData.map(({ dayShort, dayDate, changedGroups, unitSupportData, dayNote }) => {
-      let content = '';
-
-      // Changes section
-      if (changedGroups.length === 0) {
-        content += `<div style="color:#94a3b8;font-size:9px;font-style:italic;margin-bottom:8px;">Geen wisselingen</div>`;
-      } else {
-        changedGroups.forEach(({ group, gs, unmanned }) => {
-          // Group header
-          content += `<div style="margin-bottom:6px;">`;
-          content += `<div style="font-weight:700;font-size:10px;color:#1e293b;border-left:3px solid ${group.color};padding-left:5px;margin-bottom:2px;">${group.name}`;
-          if (unmanned) content += ` <span style="color:#dc2626;">⚠</span>`;
-          content += `</div>`;
-
-          // Staff lines — only show changes (absent, replacements, time absences)
-          gs.forEach(s => {
-            if (s.absent) {
-              content += `<div style="font-size:9px;padding:1px 0 1px 8px;color:#92400e;">`;
-              content += `<s>${s.name.split(' ')[0]}</s> <span style="color:#b45309;">(${s.reason || 'afw.'})</span>`;
-              content += `</div>`;
-            } else if (s.isReplacement) {
-              content += `<div style="font-size:9px;padding:1px 0 1px 8px;color:#4f46e5;font-weight:600;">`;
-              content += `↪ ${s.name.split(' ')[0]}`;
-              if (s.replacementStartTime) content += ` <span style="font-weight:400;">${s.replacementStartTime}–${s.replacementEndTime}</span>`;
-              content += `</div>`;
-            }
-            // Time absences on regular staff
-            if (!s.absent && s.timeAbsences?.length > 0) {
-              s.timeAbsences.forEach(ta => {
-                content += `<div style="font-size:9px;padding:1px 0 1px 8px;color:#ea580c;">`;
-                content += `${s.name.split(' ')[0]} ✗ ${ta.startTime}–${ta.endTime}`;
-                if (ta.reason) content += ` (${ta.reason})`;
+      const columns = daysData.map(({ dayShort, dayDate, changedGroups, unitSupportData, dayNote }) => {
+        let content = '';
+        if (changedGroups.length === 0) {
+          content += `<div style="color:#94a3b8;font-size:9px;font-style:italic;margin-bottom:8px;">Geen wisselingen</div>`;
+        } else {
+          changedGroups.forEach(({ group, gs, unmanned }) => {
+            content += `<div style="margin-bottom:6px;">`;
+            content += `<div style="font-weight:700;font-size:10px;color:#1e293b;border-left:3px solid ${group.color};padding-left:5px;margin-bottom:2px;">${group.name}`;
+            if (unmanned) content += ` <span style="color:#dc2626;">⚠</span>`;
+            content += `</div>`;
+            gs.forEach(s => {
+              if (s.absent) {
+                content += `<div style="font-size:9px;padding:1px 0 1px 8px;color:#92400e;">`;
+                content += `<s>${s.name.split(' ')[0]}</s> <span style="color:#b45309;">(${s.reason || 'afw.'})</span>`;
                 content += `</div>`;
-              });
-            }
+              } else if (s.isReplacement) {
+                content += `<div style="font-size:9px;padding:1px 0 1px 8px;color:#4f46e5;font-weight:600;">`;
+                content += `↪ ${s.name.split(' ')[0]}`;
+                if (s.replacementStartTime) content += ` <span style="font-weight:400;">${s.replacementStartTime}–${s.replacementEndTime}</span>`;
+                content += `</div>`;
+              }
+              if (!s.absent && s.timeAbsences?.length > 0) {
+                s.timeAbsences.forEach(ta => {
+                  content += `<div style="font-size:9px;padding:1px 0 1px 8px;color:#ea580c;">`;
+                  content += `${s.name.split(' ')[0]} ✗ ${ta.startTime}–${ta.endTime}`;
+                  if (ta.reason) content += ` (${ta.reason})`;
+                  content += `</div>`;
+                });
+              }
+            });
+            content += `</div>`;
           });
-
-          content += `</div>`;
-        });
-      }
-
-      // Unit support section
-      if (unitSupportData.length > 0) {
-        content += `<div style="margin-top:8px;padding-top:6px;border-top:1px solid #e2e8f0;">`;
-        content += `<div style="font-weight:700;font-size:9px;color:#6366f1;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">Ondersteuning</div>`;
-
-        unitSupportData.forEach(({ unit, unitStaff }) => {
-          content += `<div style="margin-bottom:4px;">`;
-          content += `<div style="font-size:9px;font-weight:600;color:#4f46e5;margin-bottom:1px;">${unit.name}</div>`;
-          unitStaff.forEach(s => {
-            if (s.absent) {
-              content += `<div style="font-size:9px;padding:1px 0 1px 8px;color:#92400e;">`;
-              content += `<s>${s.name.split(' ')[0]}</s> <span style="color:#b45309;">(${s.reason || 'afw.'})</span>`;
-              content += `</div>`;
-            } else {
-              content += `<div style="font-size:9px;padding:1px 0 1px 8px;color:#4338ca;">`;
-              content += `${s.name.split(' ')[0]}`;
-              content += `</div>`;
-            }
+        }
+        if (unitSupportData.length > 0) {
+          content += `<div style="margin-top:8px;padding-top:6px;border-top:1px solid #e2e8f0;">`;
+          content += `<div style="font-weight:700;font-size:9px;color:#6366f1;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">Ondersteuning</div>`;
+          unitSupportData.forEach(({ unit, unitStaff }) => {
+            content += `<div style="margin-bottom:4px;">`;
+            content += `<div style="font-size:9px;font-weight:600;color:#4f46e5;margin-bottom:1px;">${unit.name}</div>`;
+            unitStaff.forEach(s => {
+              if (s.absent) {
+                content += `<div style="font-size:9px;padding:1px 0 1px 8px;color:#92400e;">`;
+                content += `<s>${s.name.split(' ')[0]}</s> <span style="color:#b45309;">(${s.reason || 'afw.'})</span>`;
+                content += `</div>`;
+              } else {
+                content += `<div style="font-size:9px;padding:1px 0 1px 8px;color:#4338ca;">`;
+                content += `${s.name.split(' ')[0]}`;
+                content += `</div>`;
+              }
+            });
+            content += `</div>`;
           });
           content += `</div>`;
+        }
+        if (dayNote) {
+          content += `<div style="margin-top:8px;padding-top:6px;border-top:1px solid #e2e8f0;">`;
+          content += `<div style="font-weight:700;font-size:9px;color:#d97706;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">📝 Notitie</div>`;
+          content += `<div style="font-size:9px;color:#92400e;font-style:italic;padding:3px 6px;background:#fef3c7;border-radius:3px;white-space:pre-wrap;">${dayNote.text}</div>`;
+          content += `</div>`;
+        }
+        return { dayShort, dayDate, content };
+      });
+
+      let gridHtml = '';
+      if (!hasAnyChanges && !hasAnySupport && !hasAnyNotes) {
+        gridHtml = `<div style="text-align:center;padding:30px;color:#94a3b8;font-size:14px;">Geen wisselingen deze week ✓</div>`;
+      } else {
+        gridHtml += `<table style="width:100%;border-collapse:collapse;table-layout:fixed;">`;
+        gridHtml += `<thead><tr>`;
+        columns.forEach(({ dayShort, dayDate }) => {
+          gridHtml += `<th style="width:20%;padding:6px 8px;text-align:left;border-bottom:2px solid #3b82f6;font-size:11px;font-weight:700;color:#1e293b;">`;
+          gridHtml += `${dayShort} <span style="font-weight:400;color:#64748b;">${dayDate}</span>`;
+          gridHtml += `</th>`;
         });
-
-        content += `</div>`;
+        gridHtml += `</tr></thead>`;
+        gridHtml += `<tbody><tr>`;
+        columns.forEach(({ content }) => {
+          gridHtml += `<td style="width:20%;padding:8px;vertical-align:top;border-right:1px solid #e2e8f0;">${content}</td>`;
+        });
+        gridHtml += `</tr></tbody></table>`;
       }
 
-      // Day note section
-      if (dayNote) {
-        content += `<div style="margin-top:8px;padding-top:6px;border-top:1px solid #e2e8f0;">`;
-        content += `<div style="font-weight:700;font-size:9px;color:#d97706;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">📝 Notitie</div>`;
-        content += `<div style="font-size:9px;color:#92400e;font-style:italic;padding:3px 6px;background:#fef3c7;border-radius:3px;white-space:pre-wrap;">${dayNote.text}</div>`;
-        content += `</div>`;
-      }
-
-      return { dayShort, dayDate, content };
-    });
-
-    // Build grid HTML
-    let gridHtml = '';
-    if (!hasAnyChanges && !hasAnySupport && !hasAnyNotes) {
-      gridHtml = `<div style="text-align:center;padding:30px;color:#94a3b8;font-size:14px;">Geen wisselingen deze week ✓</div>`;
-    } else {
-      // Header row
-      gridHtml += `<table style="width:100%;border-collapse:collapse;table-layout:fixed;">`;
-      gridHtml += `<thead><tr>`;
-      columns.forEach(({ dayShort, dayDate }) => {
-        gridHtml += `<th style="width:20%;padding:6px 8px;text-align:left;border-bottom:2px solid #3b82f6;font-size:11px;font-weight:700;color:#1e293b;">`;
-        gridHtml += `${dayShort} <span style="font-weight:400;color:#64748b;">${dayDate}</span>`;
-        gridHtml += `</th>`;
-      });
-      gridHtml += `</tr></thead>`;
-
-      // Content row
-      gridHtml += `<tbody><tr>`;
-      columns.forEach(({ content }) => {
-        gridHtml += `<td style="width:20%;padding:8px;vertical-align:top;border-right:1px solid #e2e8f0;">${content}</td>`;
-      });
-      gridHtml += `</tr></tbody></table>`;
+      return { wkNum, dateRange, gridHtml };
     }
+
+    // Build all week blocks
+    const weekBlocks = [];
+    for (let w = 0; w < weekCount; w++) {
+      const thisWeekBase = addWeeks(currentWeek, startWeekOffset + w);
+      const wkDates = getWeekDates(thisWeekBase);
+      const wkNum = getISOWeek(wkDates[0]);
+      weekBlocks.push(buildWeekBlock(wkDates, wkNum));
+    }
+
+    // Build full HTML
+    const titleWeeks = weekBlocks.map(b => b.wkNum).join(', ');
+    let bodyContent = '';
+    weekBlocks.forEach((block, idx) => {
+      const pageBreak = idx > 0 ? 'page-break-before:always;' : '';
+      bodyContent += `
+  <div style="${pageBreak}">
+    <div style="margin-bottom:12px;padding-bottom:8px;border-bottom:2px solid #3b82f6;display:flex;justify-content:space-between;align-items:baseline;">
+      <div>
+        <span style="font-size:16px;font-weight:800;color:#1e293b;">Weekoverzicht — Week ${block.wkNum}</span>
+        <span style="font-size:11px;color:#64748b;margin-left:8px;">${block.dateRange}</span>
+      </div>
+      <span style="font-size:9px;color:#94a3b8;">Wisselingen & ondersteuning</span>
+    </div>
+    ${block.gridHtml}
+  </div>`;
+    });
 
     const html = `<!DOCTYPE html>
 <html lang="nl">
 <head>
   <meta charset="UTF-8">
-  <title>Weekoverzicht — Week ${weekNum}</title>
+  <title>Weekoverzicht — Week ${titleWeeks}</title>
   <style>
     @media print {
       body { margin: 0; }
@@ -467,14 +476,7 @@ export default function Dashboard({ initialDate, onInitialDateUsed }) {
   </style>
 </head>
 <body>
-  <div style="margin-bottom:12px;padding-bottom:8px;border-bottom:2px solid #3b82f6;display:flex;justify-content:space-between;align-items:baseline;">
-    <div>
-      <span style="font-size:16px;font-weight:800;color:#1e293b;">Weekoverzicht — Week ${weekNum}</span>
-      <span style="font-size:11px;color:#64748b;margin-left:8px;">${dateRange}</span>
-    </div>
-    <span style="font-size:9px;color:#94a3b8;">Wisselingen & ondersteuning</span>
-  </div>
-  ${gridHtml}
+  ${bodyContent}
   <div style="margin-top:16px;font-size:8px;color:#cbd5e1;text-align:right;">
     ${format(new Date(), 'd MMM yyyy HH:mm', { locale: nl })}
   </div>
@@ -508,7 +510,7 @@ export default function Dashboard({ initialDate, onInitialDateUsed }) {
               </p>
             </div>
             <button
-              onClick={generateWeekPDF}
+              onClick={() => setShowPrintModal(true)}
               className="p-2 rounded-lg hover:bg-gray-200 transition-colors border border-gray-200 text-gray-500 hover:text-gray-700"
               title="Weekoverzicht printen (PDF)"
             >
@@ -881,6 +883,127 @@ export default function Dashboard({ initialDate, onInitialDateUsed }) {
           canPlan={canPlan}
         />
       )}
+
+      {/* Print options modal */}
+      {showPrintModal && (
+        <PrintOptionsModal
+          onPrint={(offset, count) => {
+            setShowPrintModal(false);
+            generateWeekPDF(offset, count);
+          }}
+          onClose={() => setShowPrintModal(false)}
+        />
+      )}
+    </div>
+  );
+}
+
+// ── Print options modal ──────────────────────────────────────────────────
+
+function PrintOptionsModal({ onPrint, onClose }) {
+  const [startWeek, setStartWeek] = useState(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem('printPreferences'));
+      return saved?.startWeek || 'current';
+    } catch { return 'current'; }
+  });
+  const [weekCount, setWeekCount] = useState(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem('printPreferences'));
+      return saved?.weekCount || 1;
+    } catch { return 1; }
+  });
+
+  function handlePrint() {
+    try {
+      localStorage.setItem('printPreferences', JSON.stringify({ startWeek, weekCount }));
+    } catch { /* ignore */ }
+    const offset = startWeek === 'next' ? 1 : 0;
+    onPrint(offset, weekCount);
+  }
+
+  const rangeOptions = [
+    { value: 'current', label: 'Huidige week' },
+    { value: 'next', label: 'Volgende week' },
+  ];
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+      <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-sm">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200">
+          <h2 className="font-bold text-gray-900 flex items-center gap-2">
+            <Printer className="w-4 h-4 text-gray-500" />
+            Afdrukken
+          </h2>
+          <button onClick={onClose} className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors text-gray-500">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <div className="px-5 py-4 space-y-5">
+          {/* Bereik */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Bereik</label>
+            <div className="flex gap-2">
+              {rangeOptions.map(opt => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setStartWeek(opt.value)}
+                  className={`flex-1 px-3 py-2 text-sm font-medium rounded-lg border-2 transition-colors ${
+                    startWeek === opt.value
+                      ? 'border-blue-500 bg-blue-50 text-blue-700'
+                      : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Aantal weken */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Aantal weken</label>
+            <div className="flex gap-2">
+              {[1, 2, 3, 4].map(n => (
+                <button
+                  key={n}
+                  type="button"
+                  onClick={() => setWeekCount(n)}
+                  className={`flex-1 px-3 py-2 text-sm font-medium rounded-lg border-2 transition-colors ${
+                    weekCount === n
+                      ? 'border-blue-500 bg-blue-50 text-blue-700'
+                      : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50'
+                  }`}
+                >
+                  {n}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Actions */}
+        <div className="flex justify-end gap-2 px-5 py-4 border-t border-gray-100">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2 text-sm rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
+          >
+            Annuleren
+          </button>
+          <button
+            type="button"
+            onClick={handlePrint}
+            className="px-4 py-2 text-sm rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors font-medium flex items-center gap-2"
+          >
+            <Printer className="w-3.5 h-3.5" />
+            Afdrukken
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
