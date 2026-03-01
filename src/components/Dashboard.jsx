@@ -267,15 +267,19 @@ export default function Dashboard({ initialDate, onInitialDateUsed }) {
         })
         .filter(Boolean);
 
-      return { dayShort, dayDate, changedGroups, unitSupportData };
+      // Day note
+      const dayNote = getDayNote(date);
+
+      return { dayShort, dayDate, changedGroups, unitSupportData, dayNote };
     });
 
     const dateRange = `${capitalize(format(weekDates[0], 'd MMMM', { locale: nl }))} t/m ${format(weekDates[4], 'd MMMM yyyy', { locale: nl })}`;
     const hasAnyChanges = daysData.some(d => d.changedGroups.length > 0);
     const hasAnySupport = daysData.some(d => d.unitSupportData.length > 0);
+    const hasAnyNotes = daysData.some(d => d.dayNote);
 
     // Build column content per day
-    const columns = daysData.map(({ dayShort, dayDate, changedGroups, unitSupportData }) => {
+    const columns = daysData.map(({ dayShort, dayDate, changedGroups, unitSupportData, dayNote }) => {
       let content = '';
 
       // Changes section
@@ -341,12 +345,20 @@ export default function Dashboard({ initialDate, onInitialDateUsed }) {
         content += `</div>`;
       }
 
+      // Day note section
+      if (dayNote) {
+        content += `<div style="margin-top:8px;padding-top:6px;border-top:1px solid #e2e8f0;">`;
+        content += `<div style="font-weight:700;font-size:9px;color:#d97706;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">📝 Notitie</div>`;
+        content += `<div style="font-size:9px;color:#92400e;font-style:italic;padding:3px 6px;background:#fef3c7;border-radius:3px;white-space:pre-wrap;">${dayNote.text}</div>`;
+        content += `</div>`;
+      }
+
       return { dayShort, dayDate, content };
     });
 
     // Build grid HTML
     let gridHtml = '';
-    if (!hasAnyChanges && !hasAnySupport) {
+    if (!hasAnyChanges && !hasAnySupport && !hasAnyNotes) {
       gridHtml = `<div style="text-align:center;padding:30px;color:#94a3b8;font-size:14px;">Geen wisselingen deze week ✓</div>`;
     } else {
       // Header row
