@@ -8,7 +8,7 @@ import {
   ChevronLeft, ChevronRight, AlertTriangle, CheckCircle,
   UserX, Users, Clock, X, Plus, UserPlus, Printer, StickyNote, Pencil, Trash2,
 } from 'lucide-react';
-import { useApp, DAYS, DAY_LABELS_NL, generateId } from '../context/AppContext.jsx';
+import { useApp, DAYS, DAY_LABELS_NL, generateId, getGroupTimesForDay } from '../context/AppContext.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import { isPlannerOrAbove } from '../utils/roles';
 
@@ -54,7 +54,7 @@ function workingHoursCover(daySchedule, requiredStart, requiredEnd) {
 
 export default function Dashboard({ initialDate, onInitialDateUsed }) {
   const { state, dispatch } = useApp();
-  const { groups, units, staff, absences, timeAbsences, unitOverrides, dayNotes } = state;
+  const { groups, units, staff, absences, timeAbsences, unitOverrides, dayNotes, gradeLevelSchedules } = state;
   const { role } = useAuth();
   const canPlan = isPlannerOrAbove(role);
 
@@ -875,6 +875,7 @@ export default function Dashboard({ initialDate, onInitialDateUsed }) {
           absences={absences}
           timeAbsences={timeAbsences || []}
           staffDateAssignments={state.staffDateAssignments || []}
+          gradeLevelSchedules={gradeLevelSchedules}
           dispatch={dispatch}
           onClose={() => setSelectedGroup(null)}
           canPlan={canPlan}
@@ -1003,6 +1004,7 @@ function DayDetailModal({
                           unmanned={isGroupUnmanned(group.id, date)}
                           onStaffClick={canPlan ? setStaffAction : undefined}
                           canPlan={canPlan}
+                          gradeLevelSchedules={gradeLevelSchedules}
                         />
                       );
                     })}
@@ -1059,6 +1061,7 @@ function DayDetailModal({
                         staffList={getGroupStaff(group.id, date)}
                         unmanned={isGroupUnmanned(group.id, date)}
                         canPlan={canPlan}
+                        gradeLevelSchedules={gradeLevelSchedules}
                       />
                     );
                   })}
@@ -1216,10 +1219,12 @@ function DayDetailModal({
   );
 }
 
-function GroupDetailCard({ group, date, staffList, unmanned, onStaffClick, canPlan }) {
+function GroupDetailCard({ group, date, staffList, unmanned, onStaffClick, canPlan, gradeLevelSchedules }) {
   const hasAbsent = staffList.some(s => s.absent);
   const hasTimeAbsent = staffList.some(s => !s.absent && s.timeAbsences?.length > 0);
   const hasReplacement = staffList.some(s => s.isReplacement === true);
+  const dayKey = DAYS[date.getDay() - 1] || 'monday';
+  const times = getGroupTimesForDay(group, gradeLevelSchedules, dayKey);
 
   return (
     <div
@@ -1236,7 +1241,7 @@ function GroupDetailCard({ group, date, staffList, unmanned, onStaffClick, canPl
         <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: group.color }} />
         <span className="font-semibold text-gray-800">{group.name}</span>
         <span className="ml-auto text-xs text-gray-400">
-          {group.startTime}–{group.endTime}
+          {times.startTime}–{times.endTime}
         </span>
       </div>
 
@@ -1305,17 +1310,16 @@ function GroupDetailCard({ group, date, staffList, unmanned, onStaffClick, canPl
 
 // ── Single group popup ─────────────────────────────────────────────────────
 
-function GroupPopup({ group, date, staffList, allStaff, unitStaff, unit, unmanned, absences, timeAbsences, staffDateAssignments, dispatch, onClose, canPlan }) {
+function GroupPopup({ group, date, staffList, allStaff, unitStaff, unit, unmanned, absences, timeAbsences, staffDateAssignments, gradeLevelSchedules, dispatch, onClose, canPlan }) {
   const [staffAction, setStaffAction] = useState(null);
   const [showReplacementMode, setShowReplacementMode] = useState(false);
   const [replacementTimeSlot, setReplacementTimeSlot] = useState(null); // { startTime, endTime } or null for whole-day
   const dateLabel = capitalize(format(date, 'EEEE d MMMM yyyy', { locale: nl }));
   const today = isToday(date);
+  const dayKey = DAYS[date.getDay() - 1] || 'monday';
+  const groupTimes = getGroupTimesForDay(group, gradeLevelSchedules, dayKey);
   const hasAbsent = staffList.some(s => s.absent);
   const hasTimeAbsent = staffList.some(s => !s.absent && s.timeAbsences?.length > 0);
-
-  // Get available staff and absent staff for replacement section
-  const dayKey = DAYS[date.getDay() - 1] || 'monday';
 
   // Split all staff into available and absent
   const dateStr = formatLocalDate(date);
@@ -1361,8 +1365,8 @@ function GroupPopup({ group, date, staffList, allStaff, unitStaff, unit, unmanne
       }
 
       // Check working hours cover the required time range
-      const requiredStart = replacementTimeSlot?.startTime || group.startTime;
-      const requiredEnd = replacementTimeSlot?.endTime || group.endTime;
+      const requiredStart = replacementTimeSlot?.startTime || groupTimes.startTime;
+      const requiredEnd = replacementTimeSlot?.endTime || groupTimes.endTime;
       if (!workingHoursCover(daySchedule, requiredStart, requiredEnd)) return false;
 
       return true;
@@ -1476,7 +1480,7 @@ function GroupPopup({ group, date, staffList, allStaff, unitStaff, unit, unmanne
           <div className="p-4 space-y-4">
             {/* Times */}
             <div className="flex flex-wrap gap-3 text-xs text-gray-500">
-              <span className="font-medium text-gray-700">{group.startTime}–{group.endTime}</span>
+              <span className="font-medium text-gray-700">{groupTimes.startTime}–{groupTimes.endTime}</span>
               <span className="flex items-center gap-1">
                 <Clock className="w-3 h-3" />
                 Pauze: {group.shortBreak?.start}–{group.shortBreak?.end}

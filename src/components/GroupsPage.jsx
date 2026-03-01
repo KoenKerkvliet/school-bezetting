@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Plus, Pencil, Trash2, X, Clock, BookOpen, Layers } from 'lucide-react';
-import { useApp, GROUP_COLORS, generateId, DAYS, DAY_LABELS_SHORT, GRADE_LEVELS } from '../context/AppContext.jsx';
+import { useApp, GROUP_COLORS, generateId, DAYS, DAY_LABELS_SHORT, GRADE_LEVELS, getGroupTimesForDay } from '../context/AppContext.jsx';
 
 // ── Default form values ────────────────────────────────────────────────────
 
@@ -223,7 +223,16 @@ export default function GroupsPage() {
                       <div className="space-y-1.5 text-xs text-gray-600">
                         <div className="flex items-center gap-1.5">
                           <Clock className="w-3.5 h-3.5 text-gray-400" />
-                          <span>{group.startTime} – {group.endTime}</span>
+                          <span>
+                            {(() => {
+                              const mon = getGroupTimesForDay(group, state.gradeLevelSchedules, 'monday');
+                              const wed = getGroupTimesForDay(group, state.gradeLevelSchedules, 'wednesday');
+                              if (wed.endTime !== mon.endTime) {
+                                return `${mon.startTime} – ${mon.endTime} (wo ${wed.endTime})`;
+                              }
+                              return `${mon.startTime} – ${mon.endTime}`;
+                            })()}
+                          </span>
                         </div>
                         <div className="flex items-center gap-1.5 text-gray-500">
                           <span className="w-3.5" />

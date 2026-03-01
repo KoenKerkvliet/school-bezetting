@@ -572,6 +572,27 @@ export const DEFAULT_GRADE_LEVEL_SCHEDULES = [
   makeGradeSchedule(8, '08:30', '15:00', '12:30'),
 ];
 
+/**
+ * Resolve effective start/end times for a group on a specific day.
+ * If the group is linked to a grade level, returns times from the grade level schedule.
+ * Otherwise falls back to the group's own startTime/endTime.
+ */
+export function getGroupTimesForDay(group, gradeLevelSchedules, dayName = 'monday') {
+  if (group.gradeLevel && gradeLevelSchedules?.length > 0) {
+    const schedule = gradeLevelSchedules.find(s => s.gradeLevel === group.gradeLevel);
+    if (schedule?.schedule?.[dayName]) {
+      return {
+        startTime: schedule.schedule[dayName].startTime,
+        endTime: schedule.schedule[dayName].endTime,
+      };
+    }
+  }
+  return {
+    startTime: group.startTime || '08:30',
+    endTime: group.endTime || '15:00',
+  };
+}
+
 export const GROUP_COLORS = [
   '#ef4444', '#f97316', '#eab308', '#22c55e',
   '#14b8a6', '#3b82f6', '#8b5cf6', '#ec4899',
