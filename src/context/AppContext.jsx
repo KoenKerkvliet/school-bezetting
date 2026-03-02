@@ -574,8 +574,12 @@ export const DAY_LABELS_SHORT = ['Ma', 'Di', 'Wo', 'Do', 'Vr'];
 
 export const ROLES = ['Directie', 'MT', 'Intern Begeleider', 'Leerkracht', 'Onderwijsondersteuner', 'Onderwijsassistent', 'Conciërge', 'Overig'];
 
-export const ABSENCE_REASONS = ['Ziek', 'Studiedag', 'Verlof', 'Nascholing', 'Vergadering', 'Overig'];
-export const TIME_ABSENCE_REASONS = ['Bespreking', 'Vergadering', 'Overleg', 'Oudergesprek', 'Nascholing', 'Overig'];
+export const DEFAULT_ABSENCE_REASONS = ['Ziek', 'Studiedag', 'Verlof', 'Nascholing', 'Vergadering', 'Overig'];
+export const DEFAULT_TIME_ABSENCE_REASONS = ['Bespreking', 'Vergadering', 'Overleg', 'Oudergesprek', 'Nascholing', 'Overig'];
+
+// Backward compatible aliases
+export const ABSENCE_REASONS = DEFAULT_ABSENCE_REASONS;
+export const TIME_ABSENCE_REASONS = DEFAULT_TIME_ABSENCE_REASONS;
 
 export const GRADE_LEVELS = [1, 2, 3, 4, 5, 6, 7, 8];
 

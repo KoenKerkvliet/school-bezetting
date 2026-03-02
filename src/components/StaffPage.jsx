@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import {
   useApp, DAYS, DAY_LABELS_NL, DAY_LABELS_SHORT,
-  ROLES, ABSENCE_REASONS, TIME_ABSENCE_REASONS, generateId,
+  ROLES, DEFAULT_ABSENCE_REASONS, DEFAULT_TIME_ABSENCE_REASONS, generateId,
 } from '../context/AppContext.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import { isPlannerOrAbove, isAdminOrAbove } from '../utils/roles';
@@ -28,7 +28,7 @@ const defaultStaffForm = {
 
 const defaultAbsenceForm = {
   date: format(new Date(), 'yyyy-MM-dd'),
-  reason: ABSENCE_REASONS[0],
+  reason: '', // Set dynamically from orgSettings in component
 };
 
 const defaultTimeAbsenceForm = {
@@ -69,9 +69,17 @@ function scheduleLabel(daySchedule, groups, units) {
 export default function StaffPage() {
   const { state, dispatch } = useApp();
   const { staff, groups, units, absences, timeAbsences } = state;
-  const { role } = useAuth();
+  const { role, orgSettings } = useAuth();
   const canPlan = isPlannerOrAbove(role);
   const isAdmin = isAdminOrAbove(role);
+
+  // Absence reasons: use org-level settings or fall back to defaults
+  const absenceReasons = orgSettings?.absenceReasons?.length > 0
+    ? orgSettings.absenceReasons
+    : DEFAULT_ABSENCE_REASONS;
+  const timeAbsenceReasons = orgSettings?.timeAbsenceReasons?.length > 0
+    ? orgSettings.timeAbsenceReasons
+    : DEFAULT_TIME_ABSENCE_REASONS;
 
   const [staffModal, setStaffModal] = useState(null);
   const [absenceModal, setAbsenceModal] = useState(null);
@@ -114,7 +122,7 @@ export default function StaffPage() {
   function openAbsenceModal(staffId) {
     setAbsenceModal({
       staffId,
-      data: { ...defaultAbsenceForm, id: generateId() },
+      data: { ...defaultAbsenceForm, id: generateId(), reason: absenceReasons[0] },
     });
   }
 
@@ -429,6 +437,7 @@ export default function StaffPage() {
         <AbsenceModal
           staffName={staff.find(s => s.id === absenceModal.staffId)?.name}
           data={absenceModal.data}
+          reasons={absenceReasons}
           onChange={data => setAbsenceModal(m => ({ ...m, data }))}
           onSave={saveAbsence}
           onClose={() => setAbsenceModal(null)}
@@ -440,6 +449,7 @@ export default function StaffPage() {
         <TimeAbsenceModal
           staffName={staff.find(s => s.id === timeAbsenceModal.staffId)?.name}
           data={timeAbsenceModal.data}
+          reasons={timeAbsenceReasons}
           onChange={data => setTimeAbsenceModal(m => ({ ...m, data }))}
           onSave={saveTimeAbsence}
           onClose={() => setTimeAbsenceModal(null)}
@@ -804,7 +814,7 @@ function StaffModal({ data, mode, groups, units, onSave, onClose }) {
 
 // ── Time Absence Modal ─────────────────────────────────────────────────────
 
-function TimeAbsenceModal({ staffName, data, onChange, onSave, onClose }) {
+function TimeAbsenceModal({ staffName, data, reasons, onChange, onSave, onClose }) {
   function handleSubmit(e) {
     e.preventDefault();
     if (!data.date || !data.startTime || !data.endTime) return;
@@ -878,7 +888,7 @@ function TimeAbsenceModal({ staffName, data, onChange, onSave, onClose }) {
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
             />
             <datalist id="time-absence-reasons">
-              {TIME_ABSENCE_REASONS.map(r => <option key={r} value={r} />)}
+              {reasons.map(r => <option key={r} value={r} />)}
             </datalist>
           </div>
 
@@ -906,7 +916,7 @@ function TimeAbsenceModal({ staffName, data, onChange, onSave, onClose }) {
 
 // ── Absence Modal ──────────────────────────────────────────────────────────
 
-function AbsenceModal({ staffName, data, onChange, onSave, onClose }) {
+function AbsenceModal({ staffName, data, reasons, onChange, onSave, onClose }) {
   function handleSubmit(e) {
     e.preventDefault();
     if (!data.date) return;
@@ -953,7 +963,7 @@ function AbsenceModal({ staffName, data, onChange, onSave, onClose }) {
               onChange={e => onChange({ ...data, reason: e.target.value })}
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
-              {ABSENCE_REASONS.map(r => (
+              {reasons.map(r => (
                 <option key={r} value={r}>{r}</option>
               ))}
             </select>

@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext'
 import { isAdminOrAbove } from '../utils/roles'
 import GradeLevelScheduleEditor from './GradeLevelScheduleEditor'
 import SchoolClosureEditor from './SchoolClosureEditor'
+import AbsenceReasonEditor from './AbsenceReasonEditor'
 import AdminDashboard from './AdminDashboard'
 
 export default function SettingsPage({ onNavigateToUserDetail }) {
@@ -49,6 +50,16 @@ export default function SettingsPage({ onNavigateToUserDetail }) {
           Vakanties & vrije dagen
         </button>
         <button
+          onClick={() => setActiveTab('reasons')}
+          className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+            activeTab === 'reasons'
+              ? 'border-blue-600 text-blue-600'
+              : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+          }`}
+        >
+          Afwezigheidsredenen
+        </button>
+        <button
           onClick={() => setActiveTab('admin')}
           className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
             activeTab === 'admin'
@@ -64,6 +75,7 @@ export default function SettingsPage({ onNavigateToUserDetail }) {
       <div>
         {activeTab === 'schedules' && <GradeLevelScheduleEditor />}
         {activeTab === 'closures' && <SchoolClosureEditor />}
+        {activeTab === 'reasons' && <AbsenceReasonEditor />}
         {activeTab === 'admin' && (
           <AdminDashboard
             embedded
