@@ -1,5 +1,23 @@
 [
   {
+    "version": "1.4",
+    "date": "2026-03-02",
+    "changes": [
+      { "text": "Afwezigheidsredenen instelbaar via Instellingen", "type": "new" },
+      { "text": "'Hele dag afwezig' met keuzelijst van redenen (vervangt 'Ziek melden')", "type": "new" },
+      { "text": "Ondersteuning en ambulante medewerkers klikbaar voor afwezigheidsmelding", "type": "new" },
+      { "text": "Vervangers: keuze tussen hele dag of aangepast tijdslot met begin-/eindtijd", "type": "new" },
+      { "text": "Ambulante medewerkers beschikbaar als vervanger in groepspopup", "type": "new" },
+      { "text": "Dagbadge toont amber 'aandacht' bij ongedekte tijdelijke afwezigheid", "type": "new" },
+      { "text": "Groepskaart kleurt groen met amber rand als tijdelijke afwezigheid gedekt is", "type": "improvement" },
+      { "text": "Vervangerlijst respecteert groepsbezetting: groepsgebonden collega's uitgesloten", "type": "improvement" },
+      { "text": "Vloeiend laadscherm voorkomt flash bij opstarten", "type": "improvement" },
+      { "text": "Logboek: paginering, wissen en automatisch opschonen", "type": "improvement" },
+      { "text": "Loginpagina vernieuwd met twee-koloms layout", "type": "improvement" },
+      { "text": "Dagdetail white-screen bug opgelost", "type": "fix" }
+    ]
+  },
+  {
     "version": "1.3",
     "date": "2026-03-01",
     "changes": [
