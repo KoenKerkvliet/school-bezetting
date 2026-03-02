@@ -583,27 +583,6 @@ export default function Dashboard({ initialDate, onInitialDateUsed }) {
         {/* Header / navigation */}
         <div className="flex flex-col gap-3 mb-5 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3 flex-wrap">
-            {/* View mode toggle */}
-            <div className="flex items-center bg-gray-100 rounded-lg p-0.5">
-              <button
-                onClick={() => setViewMode('week')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md font-medium transition-colors ${
-                  viewMode === 'week' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                <LayoutList className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Week</span>
-              </button>
-              <button
-                onClick={() => setViewMode('month')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md font-medium transition-colors ${
-                  viewMode === 'month' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                <CalendarDays className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Maand</span>
-              </button>
-            </div>
             <div>
               <h1 className="text-lg sm:text-xl font-bold text-gray-800">
                 {viewMode === 'week'
@@ -629,6 +608,29 @@ export default function Dashboard({ initialDate, onInitialDateUsed }) {
             )}
           </div>
           <div className="flex items-center gap-2">
+            {/* View mode toggle */}
+            <div className="flex items-center bg-gray-100 rounded-lg p-0.5">
+              <button
+                onClick={() => setViewMode('week')}
+                className={`flex items-center gap-1.5 px-2.5 py-1.5 text-sm rounded-md font-medium transition-colors ${
+                  viewMode === 'week' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                }`}
+                title="Weekweergave"
+              >
+                <LayoutList className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Week</span>
+              </button>
+              <button
+                onClick={() => setViewMode('month')}
+                className={`flex items-center gap-1.5 px-2.5 py-1.5 text-sm rounded-md font-medium transition-colors ${
+                  viewMode === 'month' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                }`}
+                title="Maandweergave"
+              >
+                <CalendarDays className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Maand</span>
+              </button>
+            </div>
             <button
               onClick={() => setCurrentWeek(w => viewMode === 'week' ? subWeeks(w, 1) : subMonths(w, 1))}
               className="p-2 rounded-lg hover:bg-gray-200 transition-colors border border-gray-200"
