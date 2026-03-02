@@ -731,6 +731,15 @@ export default function Dashboard({ initialDate, onInitialDateUsed }) {
                     // Absent but covered by replacement → green with orange border
                     const absentButCovered = hasAbsent && !unmanned;
 
+                    // Time absences covered by time-slot replacements → green with amber border
+                    const timeAbsentButCovered = hasTimeAbsent && (() => {
+                      const allTimeSlots = gs.flatMap(s => (!s.absent && s.timeAbsences?.length > 0) ? s.timeAbsences : []);
+                      const replacements = gs.filter(s => s.isReplacement && s.replacementStartTime);
+                      return allTimeSlots.length > 0 && allTimeSlots.every(ta =>
+                        replacements.some(r => r.replacementStartTime <= ta.startTime && r.replacementEndTime >= ta.endTime)
+                      );
+                    })();
+
                     return (
                       <div
                         key={group.id}
@@ -742,6 +751,8 @@ export default function Dashboard({ initialDate, onInitialDateUsed }) {
                             ? 'bg-yellow-50 border-yellow-300'
                             : absentButCovered
                             ? 'bg-green-50 border-orange-400'
+                            : timeAbsentButCovered
+                            ? 'bg-green-50 border-amber-300'
                             : hasTimeAbsent
                             ? 'bg-amber-50 border-amber-200'
                             : 'bg-green-50 border-green-200'
