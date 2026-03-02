@@ -2,19 +2,40 @@ import React, { useState, useEffect } from 'react';
 import {
   format, startOfWeek, addDays, addWeeks, subWeeks,
   isSameDay, isToday, getISOWeek,
+  startOfMonth, endOfMonth, addMonths, subMonths, isSameMonth,
 } from 'date-fns';
 import { nl } from 'date-fns/locale';
 import {
   ChevronLeft, ChevronRight, AlertTriangle, CheckCircle,
   UserX, Users, Clock, X, Plus, UserPlus, Printer, StickyNote, Pencil, Trash2, CalendarOff,
+  CalendarDays, LayoutList,
 } from 'lucide-react';
-import { useApp, DAYS, DAY_LABELS_NL, generateId, getGroupTimesForDay, getClosureForDate, isFullClosureDate, DEFAULT_ABSENCE_REASONS } from '../context/AppContext.jsx';
+import { useApp, DAYS, DAY_LABELS_NL, DAY_LABELS_SHORT, generateId, getGroupTimesForDay, getClosureForDate, isFullClosureDate, DEFAULT_ABSENCE_REASONS } from '../context/AppContext.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import { isPlannerOrAbove } from '../utils/roles';
 
 function getWeekDates(base) {
   const monday = startOfWeek(base, { weekStartsOn: 1 });
   return DAYS.map((_, i) => addDays(monday, i));
+}
+
+function getMonthGrid(baseDate) {
+  const mStart = startOfMonth(baseDate);
+  const mEnd = endOfMonth(baseDate);
+  const gridStart = startOfWeek(mStart, { weekStartsOn: 1 });
+  const weeks = [];
+  let cur = gridStart;
+  while (cur <= mEnd || weeks.length < 4) {
+    const week = [];
+    for (let d = 0; d < 5; d++) {
+      const date = addDays(cur, d);
+      week.push({ date, isCurrentMonth: isSameMonth(date, baseDate) });
+    }
+    weeks.push(week);
+    cur = addDays(cur, 7);
+    if (cur > mEnd) break;
+  }
+  return weeks;
 }
 
 function formatLocalDate(date) {
@@ -70,6 +91,9 @@ export default function Dashboard({ initialDate, onInitialDateUsed }) {
       return new Date();
     }
   });
+  const [viewMode, setViewMode] = useState(() => {
+    try { return localStorage.getItem('dashboardViewMode') || 'week'; } catch { return 'week'; }
+  });
   const [selectedDay, setSelectedDay] = useState(null);
   const [selectedGroup, setSelectedGroup] = useState(null); // { group, date }
   const [unitMovePopup, setUnitMovePopup] = useState(null); // { staffId, staffName, staffObj, date, currentUnitId, rect }
@@ -95,8 +119,18 @@ export default function Dashboard({ initialDate, onInitialDateUsed }) {
     }
   }, [currentWeek]);
 
+  useEffect(() => {
+    try { localStorage.setItem('dashboardViewMode', viewMode); } catch {}
+  }, [viewMode]);
+
   const weekDates = getWeekDates(currentWeek);
   const weekNum = getISOWeek(weekDates[0]);
+
+  // Month view computed values
+  const monthGrid = viewMode === 'month' ? getMonthGrid(currentWeek) : [];
+  const monthLabel = viewMode === 'month'
+    ? capitalize(format(currentWeek, 'MMMM yyyy', { locale: nl }))
+    : null;
 
   // ── helpers ──────────────────────────────────────────────────────────────
 
@@ -548,29 +582,57 @@ export default function Dashboard({ initialDate, onInitialDateUsed }) {
       <div>
         {/* Header / navigation */}
         <div className="flex flex-col gap-3 mb-5 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap">
+            {/* View mode toggle */}
+            <div className="flex items-center bg-gray-100 rounded-lg p-0.5">
+              <button
+                onClick={() => setViewMode('week')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md font-medium transition-colors ${
+                  viewMode === 'week' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                <LayoutList className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Week</span>
+              </button>
+              <button
+                onClick={() => setViewMode('month')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md font-medium transition-colors ${
+                  viewMode === 'month' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                <CalendarDays className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Maand</span>
+              </button>
+            </div>
             <div>
               <h1 className="text-lg sm:text-xl font-bold text-gray-800">
-                Weekoverzicht — Week {weekNum}
+                {viewMode === 'week'
+                  ? `Weekoverzicht — Week ${weekNum}`
+                  : `Maandoverzicht — ${monthLabel}`
+                }
               </h1>
-              <p className="text-xs sm:text-sm text-gray-500">
-                {capitalize(format(weekDates[0], 'd MMMM', { locale: nl }))} t/m{' '}
-                {format(weekDates[4], 'd MMMM yyyy', { locale: nl })}
-              </p>
+              {viewMode === 'week' && (
+                <p className="text-xs sm:text-sm text-gray-500">
+                  {capitalize(format(weekDates[0], 'd MMMM', { locale: nl }))} t/m{' '}
+                  {format(weekDates[4], 'd MMMM yyyy', { locale: nl })}
+                </p>
+              )}
             </div>
-            <button
-              onClick={() => setShowPrintModal(true)}
-              className="p-2 rounded-lg hover:bg-gray-200 transition-colors border border-gray-200 text-gray-500 hover:text-gray-700"
-              title="Weekoverzicht printen (PDF)"
-            >
-              <Printer className="w-4 h-4" />
-            </button>
+            {viewMode === 'week' && (
+              <button
+                onClick={() => setShowPrintModal(true)}
+                className="p-2 rounded-lg hover:bg-gray-200 transition-colors border border-gray-200 text-gray-500 hover:text-gray-700"
+                title="Weekoverzicht printen (PDF)"
+              >
+                <Printer className="w-4 h-4" />
+              </button>
+            )}
           </div>
           <div className="flex items-center gap-2">
             <button
-              onClick={() => setCurrentWeek(w => subWeeks(w, 1))}
+              onClick={() => setCurrentWeek(w => viewMode === 'week' ? subWeeks(w, 1) : subMonths(w, 1))}
               className="p-2 rounded-lg hover:bg-gray-200 transition-colors border border-gray-200"
-              title="Vorige week"
+              title={viewMode === 'week' ? 'Vorige week' : 'Vorige maand'}
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
@@ -581,9 +643,9 @@ export default function Dashboard({ initialDate, onInitialDateUsed }) {
               Vandaag
             </button>
             <button
-              onClick={() => setCurrentWeek(w => addWeeks(w, 1))}
+              onClick={() => setCurrentWeek(w => viewMode === 'week' ? addWeeks(w, 1) : addMonths(w, 1))}
               className="p-2 rounded-lg hover:bg-gray-200 transition-colors border border-gray-200"
-              title="Volgende week"
+              title={viewMode === 'week' ? 'Volgende week' : 'Volgende maand'}
             >
               <ChevronRight className="w-4 h-4" />
             </button>
@@ -604,9 +666,16 @@ export default function Dashboard({ initialDate, onInitialDateUsed }) {
             <span className="w-3 h-3 rounded-sm bg-amber-100 border border-amber-300 inline-block" />
             Gedeeltelijk afwezig
           </span>
+          {viewMode === 'month' && (
+            <span className="flex items-center gap-1.5">
+              <span className="w-3 h-3 rounded-sm bg-gray-100 border border-gray-200 inline-block" />
+              Gesloten
+            </span>
+          )}
         </div>
 
         {/* 5-column week grid */}
+        {viewMode === 'week' && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
           {weekDates.map((date, i) => {
             const today = isToday(date);
@@ -940,6 +1009,41 @@ export default function Dashboard({ initialDate, onInitialDateUsed }) {
             );
           })}
         </div>
+        )}
+
+        {/* ── Month grid ── */}
+        {viewMode === 'month' && (
+          <div>
+            {/* Column headers */}
+            <div className="grid grid-cols-5 gap-1.5 mb-1.5">
+              {DAY_LABELS_SHORT.map(label => (
+                <div key={label} className="text-center text-xs font-semibold text-gray-500 py-1">
+                  {label}
+                </div>
+              ))}
+            </div>
+            {/* Week rows */}
+            <div className="grid gap-1.5">
+              {monthGrid.map((week, wi) => (
+                <div key={wi} className="grid grid-cols-5 gap-1.5">
+                  {week.map(({ date, isCurrentMonth }) => (
+                    <MonthDayCell
+                      key={formatLocalDate(date)}
+                      date={date}
+                      isCurrentMonth={isCurrentMonth}
+                      getDayStats={getDayStats}
+                      getClosureForDay={getClosureForDay}
+                      getDayNote={getDayNote}
+                      today={isToday(date)}
+                      selected={selectedDay && isSameDay(selectedDay, date)}
+                      onClick={() => setSelectedDay(date)}
+                    />
+                  ))}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ── Unit move popup ── */}
@@ -2596,6 +2700,84 @@ function DayNoteSection({ date, note, dispatch, canPlan }) {
         </button>
       ) : (
         <p className="text-sm text-gray-400 italic">Geen notitie</p>
+      )}
+    </div>
+  );
+}
+
+// ── Month view day cell ──────────────────────────────────────────────────────
+function MonthDayCell({ date, isCurrentMonth, getDayStats, getClosureForDay, getDayNote, today, selected, onClick }) {
+  const closure = getClosureForDay(date);
+  const isFullClosure = closure && (closure.type === 'vacation' || closure.type === 'holiday' || closure.type === 'study_day');
+  const isHalfDay = closure && (closure.type === 'half_day' || closure.type === 'study_afternoon');
+
+  const stats = !isFullClosure ? getDayStats(date) : { unmannedCount: 0, absentCount: 0, timeAbsentUncoveredCount: 0 };
+  const { unmannedCount, timeAbsentUncoveredCount } = stats;
+  const dayNote = getDayNote(date);
+
+  // Determine cell styling
+  let bg, border;
+  if (isFullClosure) {
+    bg = 'bg-gray-50'; border = 'border-gray-200';
+  } else if (unmannedCount > 0) {
+    bg = 'bg-red-50'; border = 'border-red-300';
+  } else if (timeAbsentUncoveredCount > 0) {
+    bg = 'bg-amber-50'; border = 'border-amber-300';
+  } else {
+    bg = 'bg-green-50'; border = 'border-green-300';
+  }
+
+  return (
+    <div
+      onClick={onClick}
+      className={`relative rounded-lg border p-2 cursor-pointer transition-all hover:shadow-md min-h-[70px]
+        ${bg} ${border}
+        ${!isCurrentMonth ? 'opacity-35' : ''}
+        ${selected ? 'ring-2 ring-blue-400 shadow-md' : ''}
+        ${today && !selected ? 'ring-2 ring-blue-500 ring-offset-1' : ''}
+      `}
+    >
+      {/* Day number */}
+      <div className={`text-sm font-bold ${isFullClosure ? 'text-gray-400' : today ? 'text-blue-600' : 'text-gray-700'}`}>
+        {format(date, 'd')}
+      </div>
+
+      {/* Status area */}
+      {isFullClosure ? (
+        <div className="mt-0.5">
+          <div className="text-[10px] text-gray-400 leading-tight truncate" title={closure.name}>
+            {closure.name}
+          </div>
+        </div>
+      ) : (
+        <div className="mt-1">
+          {/* Status dot + label */}
+          <div className="flex items-center gap-1">
+            <span className={`w-2 h-2 rounded-full flex-shrink-0 ${
+              unmannedCount > 0 ? 'bg-red-500'
+              : timeAbsentUncoveredCount > 0 ? 'bg-amber-400'
+              : 'bg-green-500'
+            }`} />
+            {unmannedCount > 0 ? (
+              <span className="text-[10px] font-medium text-red-700 truncate">{unmannedCount} onbemand</span>
+            ) : timeAbsentUncoveredCount > 0 ? (
+              <span className="text-[10px] font-medium text-amber-700 truncate">{timeAbsentUncoveredCount} aandacht</span>
+            ) : (
+              <span className="text-[10px] font-medium text-green-700">OK</span>
+            )}
+          </div>
+          {/* Half-day closure */}
+          {isHalfDay && (
+            <div className="text-[9px] text-cyan-600 truncate mt-0.5" title={closure.name}>
+              {closure.name}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Day note indicator */}
+      {dayNote && (
+        <StickyNote className="absolute top-1.5 right-1.5 w-3 h-3 text-yellow-500" title={dayNote.text} />
       )}
     </div>
   );
