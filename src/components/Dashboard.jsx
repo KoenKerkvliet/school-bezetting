@@ -198,7 +198,22 @@ export default function Dashboard({ initialDate, onInitialDateUsed }) {
     const activeGroups = groups.filter(g => isGroupActiveOnDay(g, dayKey));
     const unmannedCount = activeGroups.filter(g => isGroupUnmanned(g.id, date)).length;
     const absentCount = getAbsentOnDay(date).length;
-    return { unmannedCount, absentCount };
+
+    // Count groups with uncovered time absences (amber cards)
+    const timeAbsentUncoveredCount = activeGroups.filter(g => {
+      const gs = getGroupStaff(g.id, date);
+      const hasTimeAbsent = gs.some(s => !s.absent && s.timeAbsences?.length > 0);
+      if (!hasTimeAbsent) return false;
+      // Check if all time absences are covered by replacements
+      const allTimeSlots = gs.flatMap(s => (!s.absent && s.timeAbsences?.length > 0) ? s.timeAbsences : []);
+      const replacements = gs.filter(s => s.isReplacement && s.replacementStartTime);
+      const allCovered = allTimeSlots.length > 0 && allTimeSlots.every(ta =>
+        replacements.some(r => r.replacementStartTime <= ta.startTime && r.replacementEndTime >= ta.endTime)
+      );
+      return !allCovered;
+    }).length;
+
+    return { unmannedCount, absentCount, timeAbsentUncoveredCount };
   }
 
   /** Staff available to cover a group that day (not absent, not tied to an active group, not already assigned as replacement) */
@@ -600,7 +615,7 @@ export default function Dashboard({ initialDate, onInitialDateUsed }) {
             const closure = getClosureForDay(date);
             const isFullClosure = closure && (closure.type === 'vacation' || closure.type === 'holiday' || closure.type === 'study_day');
             const isHalfDay = closure && (closure.type === 'half_day' || closure.type === 'study_afternoon');
-            const { unmannedCount, absentCount } = isFullClosure ? { unmannedCount: 0, absentCount: 0 } : getDayStats(date);
+            const { unmannedCount, absentCount, timeAbsentUncoveredCount } = isFullClosure ? { unmannedCount: 0, absentCount: 0, timeAbsentUncoveredCount: 0 } : getDayStats(date);
             const hasProblems = unmannedCount > 0;
             const availableStaff = getAvailableStaff(date);
             const ambulantStaff = getAmbulantStaff(date);
@@ -663,6 +678,11 @@ export default function Dashboard({ initialDate, onInitialDateUsed }) {
                       <span className="inline-flex items-center gap-0.5 text-xs bg-red-500 text-white rounded px-1.5 py-0.5 font-medium">
                         <AlertTriangle className="w-2.5 h-2.5" />
                         {unmannedCount} onbemand
+                      </span>
+                    ) : timeAbsentUncoveredCount > 0 ? (
+                      <span className="inline-flex items-center gap-0.5 text-xs bg-amber-400 text-white rounded px-1.5 py-0.5 font-medium">
+                        <Clock className="w-2.5 h-2.5" />
+                        {timeAbsentUncoveredCount} aandacht
                       </span>
                     ) : (
                       <span className="inline-flex items-center gap-0.5 text-xs bg-green-500 text-white rounded px-1.5 py-0.5 font-medium">
