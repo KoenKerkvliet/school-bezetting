@@ -868,11 +868,36 @@ export default function Dashboard({ initialDate, onInitialDateUsed }) {
                       <div className="mb-1">
                         <div className="text-[10px] font-semibold text-gray-400 mb-0.5">Overig</div>
                         <div className="flex flex-wrap gap-1">
-                          {staffNoUnit.map(s => (
-                            <span key={s.id} className="text-xs bg-blue-50 text-blue-700 border border-blue-100 rounded-full px-1.5 py-0.5">
-                              {s.name.split(' ')[0]}
-                            </span>
-                          ))}
+                          {staffNoUnit.map(s => {
+                            const hasOverride = getUnitOverride(s.id, date);
+                            return (
+                              <span
+                                key={s.id}
+                                onClick={canPlan ? (e) => {
+                                  e.stopPropagation();
+                                  const rect = e.currentTarget.getBoundingClientRect();
+                                  setUnitMovePopup({
+                                    staffId: s.id,
+                                    staffName: s.name.split(' ')[0],
+                                    staffObj: s,
+                                    date,
+                                    currentUnitId: getEffectiveUnitId(s, date),
+                                    rect,
+                                  });
+                                } : undefined}
+                                className={`text-xs rounded-full px-1.5 py-0.5 transition-colors ${
+                                  canPlan ? 'cursor-pointer hover:bg-blue-200' : ''
+                                } ${
+                                  hasOverride
+                                    ? 'bg-amber-100 text-amber-800 border border-amber-300'
+                                    : 'bg-blue-50 text-blue-700 border border-blue-100'
+                                }`}
+                                title={canPlan ? (hasOverride ? `${s.name.split(' ')[0]} — verplaatst (klik om te wijzigen)` : `${s.name.split(' ')[0]} — klik om te verplaatsen`) : s.name.split(' ')[0]}
+                              >
+                                {hasOverride && '↪ '}{s.name.split(' ')[0]}
+                              </span>
+                            );
+                          })}
                         </div>
                       </div>
                     )}
@@ -1381,11 +1406,29 @@ function DayDetailModal({
                     <div>
                       <div className="text-xs font-semibold text-gray-400 mb-1">Overig</div>
                       <div className="flex flex-wrap gap-1.5">
-                        {staffNoUnit.map(s => (
-                          <span key={s.id} className="text-xs bg-blue-50 text-blue-700 border border-blue-200 rounded-full px-2.5 py-1 font-medium">
-                            {s.name}
-                          </span>
-                        ))}
+                        {staffNoUnit.map(s => {
+                          const hasOverride = !!getUnitOverride(s.id, date);
+                          return (
+                            <span
+                              key={s.id}
+                              onClick={canPlan ? () => setUnitMoveTarget({
+                                staffId: s.id,
+                                staffName: s.name,
+                                staffObj: s,
+                                date,
+                                currentUnitId: getEffectiveUnitId(s, date),
+                              }) : undefined}
+                              className={`text-xs rounded-full px-2.5 py-1 font-medium transition-colors ${canPlan ? 'cursor-pointer' : ''} ${
+                                hasOverride
+                                  ? 'bg-amber-100 text-amber-800 border border-amber-300' + (canPlan ? ' hover:bg-amber-200' : '')
+                                  : 'bg-blue-50 text-blue-700 border border-blue-200' + (canPlan ? ' hover:bg-blue-100' : '')
+                              }`}
+                              title={!canPlan ? s.name : hasOverride ? 'Verplaatst — klik om te wijzigen' : 'Klik om te verplaatsen'}
+                            >
+                              {hasOverride && '↪ '}{s.name}
+                            </span>
+                          );
+                        })}
                       </div>
                     </div>
                   )}
