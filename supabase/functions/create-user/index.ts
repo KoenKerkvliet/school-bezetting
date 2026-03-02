@@ -184,9 +184,26 @@ serve(async (req: Request) => {
       // Profile creation failure is not critical, continue
     }
 
-    // Send invite email directly via Emailit API
+    // Generate a password recovery link so the invite URL contains a valid token
     const origin = req.headers.get("origin") || "https://schoolbezetting.nl";
-    const resetUrl = `${origin}/set-password`;
+    let resetUrl = `${origin}/set-password`;
+    try {
+      const { data: linkData, error: linkError } = await adminClient.auth.admin.generateLink({
+        type: "recovery",
+        email,
+        options: { redirectTo: `${origin}/set-password` },
+      });
+      if (!linkError && linkData?.properties?.action_link) {
+        resetUrl = linkData.properties.action_link;
+        console.log("Generated recovery link for:", email);
+      } else {
+        console.warn("Could not generate recovery link:", linkError?.message);
+      }
+    } catch (linkErr) {
+      console.warn("generateLink error:", linkErr.message);
+    }
+
+    // Send invite email directly via Emailit API
     let emailSent = false;
     let emailError = "";
 

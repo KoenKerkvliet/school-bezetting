@@ -86,6 +86,7 @@ export function AuthProvider({ children }) {
   const [orgSettings, setOrgSettings] = useState({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [isPasswordRecovery, setIsPasswordRecovery] = useState(false)
 
   // Apply user data (role, org, permissions) — called async after login
   const applyUserData = useCallback(async (ud, authUser) => {
@@ -164,6 +165,11 @@ export function AuthProvider({ children }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         console.log('[Auth] Event:', event, session ? 'has session' : 'no session')
+
+        // Detect password recovery flow (from invite or reset email)
+        if (event === 'PASSWORD_RECOVERY') {
+          setIsPasswordRecovery(true)
+        }
 
         if (session?.user) {
           // Immediately mark as authenticated
@@ -268,6 +274,8 @@ export function AuthProvider({ children }) {
     updateProfile,
     resetPassword,
     hasPermission,
+    isPasswordRecovery,
+    clearPasswordRecovery: () => setIsPasswordRecovery(false),
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
