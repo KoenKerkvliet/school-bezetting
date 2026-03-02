@@ -1646,7 +1646,7 @@ function GroupPopup({ group, date, staffList, allStaff, allGroups, unitStaff, un
     return false;
   });
 
-  // Staff assigned to other groups or ambulant — available but less likely
+  // Ambulant staff — available but less likely (group-assigned staff are excluded to respect their group's staffing)
   const otherGroupStaff = (allStaff || []).filter(s => {
     // Not already in this group (whole-day or overlapping slot)
     const inGroupEntries = staffList.filter(st => st.id === s.id);
@@ -1668,11 +1668,8 @@ function GroupPopup({ group, date, staffList, allStaff, allGroups, unitStaff, un
     const daySchedule = s.schedule?.[dayKey];
     const scheduleType = daySchedule?.type;
 
-    // Only include staff assigned to another group or ambulant
-    if (scheduleType !== 'group' && scheduleType !== 'ambulant') return false;
-
-    // For group-type: skip if assigned to THIS group via weekly schedule
-    if (scheduleType === 'group' && daySchedule?.groupId === group.id) return false;
+    // Only include ambulant staff — group-assigned staff stay in their own group
+    if (scheduleType !== 'ambulant') return false;
 
     // Check working hours cover the required time range
     const requiredStart = replacementTimeSlot?.startTime || groupTimes.startTime;
@@ -2046,15 +2043,11 @@ function GroupPopup({ group, date, staffList, allStaff, allGroups, unitStaff, un
                 {otherGroupStaff.length > 0 && (
                   <div>
                     <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
-                      Overige collega's
+                      Ambulant
                     </h3>
                     <div className="space-y-1">
                       {otherGroupStaff.map(s => {
                         const daySchedule = s.schedule?.[dayKey];
-                        const isAmbulant = daySchedule?.type === 'ambulant';
-                        const assignedGroup = !isAmbulant && daySchedule?.groupId
-                          ? (allGroups || []).find(g => g.id === daySchedule.groupId)
-                          : null;
                         return (
                           <button
                             key={s.id}
@@ -2066,27 +2059,21 @@ function GroupPopup({ group, date, staffList, allStaff, allGroups, unitStaff, un
                                 setCustomTime({ startTime: groupTimes.startTime || '08:30', endTime: groupTimes.endTime || '15:30' });
                               }
                             }}
-                            className="w-full text-left flex items-center gap-2 rounded-lg px-3 py-2 transition-colors text-sm font-medium bg-amber-50 text-amber-800 hover:bg-amber-100"
+                            className="w-full text-left flex items-center gap-2 rounded-lg px-3 py-2 transition-colors text-sm font-medium bg-purple-50 text-purple-800 hover:bg-purple-100"
                           >
                             <UserPlus className="w-3.5 h-3.5 flex-shrink-0" />
                             <div className="flex-1">
                               <span>{s.name}</span>
-                              {isAmbulant ? (
-                                <span className="ml-1 text-xs px-1.5 py-0.5 rounded bg-purple-200 text-purple-800 font-semibold">
-                                  Ambulant
-                                </span>
-                              ) : assignedGroup && (
-                                <span className="ml-1 text-xs px-1.5 py-0.5 rounded bg-amber-200 text-amber-800 font-semibold">
-                                  {assignedGroup.name}
-                                </span>
-                              )}
+                              <span className="ml-1 text-xs px-1.5 py-0.5 rounded bg-purple-200 text-purple-800 font-semibold">
+                                Ambulant
+                              </span>
                               {daySchedule?.startTime && daySchedule?.endTime && (
                                 <span className="ml-1 text-xs text-gray-400">
                                   ({daySchedule.startTime}–{daySchedule.endTime})
                                 </span>
                               )}
                             </div>
-                            <span className="text-xs ml-auto text-amber-600">
+                            <span className="text-xs ml-auto text-purple-600">
                               {s.role}
                             </span>
                           </button>
