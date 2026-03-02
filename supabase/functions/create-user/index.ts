@@ -184,18 +184,19 @@ serve(async (req: Request) => {
       // Profile creation failure is not critical, continue
     }
 
-    // Generate a password recovery link so the invite URL contains a valid token
-    const origin = req.headers.get("origin") || "https://schoolbezetting.nl";
-    let resetUrl = `${origin}/set-password`;
+    // Generate a branded password recovery link (bypasses supabase.co URL)
+    const SITE_URL = "https://schoolbezetting.nl";
+    let resetUrl = `${SITE_URL}/set-password`;
     try {
       const { data: linkData, error: linkError } = await adminClient.auth.admin.generateLink({
         type: "recovery",
         email,
-        options: { redirectTo: `${origin}/set-password` },
       });
-      if (!linkError && linkData?.properties?.action_link) {
-        resetUrl = linkData.properties.action_link;
-        console.log("Generated recovery link for:", email);
+      if (!linkError && linkData?.properties?.hashed_token) {
+        // Build branded URL with token_hash — app will call verifyOtp() to exchange it
+        const tokenHash = linkData.properties.hashed_token;
+        resetUrl = `${SITE_URL}/set-password?token_hash=${encodeURIComponent(tokenHash)}&type=recovery`;
+        console.log("Generated branded recovery link for:", email);
       } else {
         console.warn("Could not generate recovery link:", linkError?.message);
       }

@@ -14,6 +14,9 @@ export default function ProtectedRoute({ children }) {
   const { isAuthenticated, isEmailVerified, isPasswordRecovery, loading } = useAuth()
   const [forceReady, setForceReady] = useState(false)
 
+  // Detect /set-password or /reset-password URL (branded link from invite email)
+  const isSetPasswordUrl = window.location.pathname === '/set-password' || window.location.pathname === '/reset-password'
+
   // Failsafe: never show loading screen longer than 6 seconds
   useEffect(() => {
     if (!loading) { setForceReady(false); return }
@@ -22,11 +25,16 @@ export default function ProtectedRoute({ children }) {
   }, [loading])
 
   if (loading && !forceReady) {
+    // If on /set-password URL with token, show SetPasswordPage instead of loading screen
+    // so it can verify the token and establish a session
+    if (isSetPasswordUrl && new URLSearchParams(window.location.search).has('token_hash')) {
+      return <SetPasswordPage />
+    }
     return <LoadingScreen />
   }
 
-  // Password recovery flow (from invite or reset email)
-  if (isAuthenticated && isPasswordRecovery) {
+  // Password recovery flow (from invite or reset email, or URL-based)
+  if (isPasswordRecovery || isSetPasswordUrl) {
     return <SetPasswordPage />
   }
 
