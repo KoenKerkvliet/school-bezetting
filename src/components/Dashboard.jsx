@@ -594,8 +594,8 @@ export default function Dashboard({ initialDate, onInitialDateUsed }) {
             const selected = selectedDay && isSameDay(selectedDay, date);
             const dayKey = getDayKey(date);
             const closure = getClosureForDay(date);
-            const isFullClosure = closure && (closure.type === 'vacation' || closure.type === 'holiday');
-            const isHalfDay = closure && closure.type === 'half_day';
+            const isFullClosure = closure && (closure.type === 'vacation' || closure.type === 'holiday' || closure.type === 'study_day');
+            const isHalfDay = closure && (closure.type === 'half_day' || closure.type === 'study_afternoon');
             const { unmannedCount, absentCount } = isFullClosure ? { unmannedCount: 0, absentCount: 0 } : getDayStats(date);
             const hasProblems = unmannedCount > 0;
             const availableStaff = getAvailableStaff(date);
@@ -644,7 +644,7 @@ export default function Dashboard({ initialDate, onInitialDateUsed }) {
                     <div>
                       <div className={`font-semibold text-sm ${isFullClosure ? 'text-gray-500' : today ? 'text-white' : 'text-gray-800'} flex items-center gap-1`}>
                         {DAY_LABELS_NL[i]}
-                        {getDayNote(date) && <span title={getDayNote(date).note}><StickyNote className={`w-3.5 h-3.5 ${today ? 'text-yellow-300' : 'text-yellow-500'}`} /></span>}
+                        {getDayNote(date) && <span title={getDayNote(date).text}><StickyNote className={`w-3.5 h-3.5 ${today ? 'text-yellow-300' : 'text-yellow-500'}`} /></span>}
                       </div>
                       <div className={`text-xs ${isFullClosure ? 'text-gray-400' : today ? 'text-blue-100' : 'text-gray-400'}`}>
                         {format(date, 'd MMM', { locale: nl })}
@@ -920,6 +920,7 @@ export default function Dashboard({ initialDate, onInitialDateUsed }) {
           staff={staff}
           absences={absences}
           timeAbsences={timeAbsences || []}
+          gradeLevelSchedules={gradeLevelSchedules}
           getGroupStaff={getGroupStaff}
           getUnitStaff={getUnitStaff}
           getAbsentOnDay={getAbsentOnDay}
@@ -1084,7 +1085,7 @@ function PrintOptionsModal({ onPrint, onClose }) {
 // ── Day detail modal ───────────────────────────────────────────────────────
 
 function DayDetailModal({
-  date, groups, units, staff, absences, timeAbsences,
+  date, groups, units, staff, absences, timeAbsences, gradeLevelSchedules,
   getGroupStaff, getUnitStaff, getAbsentOnDay, getAvailableStaff, getAmbulantStaff,
   isGroupUnmanned, getEffectiveUnitId, getUnitOverride, onUnitMove, onUnitMoveReset,
   dayNote, dispatch, onClose, canPlan,

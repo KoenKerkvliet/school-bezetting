@@ -3,6 +3,7 @@ import { AuthProvider, useAuth } from './context/AuthContext.jsx';
 import { AppProvider, useApp } from './context/AppContext.jsx';
 import { isAdminOrAbove } from './utils/roles';
 import LoadingScreen from './components/LoadingScreen.jsx';
+import ErrorBoundary from './components/ErrorBoundary.jsx';
 import ProtectedRoute from './components/ProtectedRoute.jsx';
 import Navbar from './components/Navbar.jsx';
 import Dashboard from './components/Dashboard.jsx';
@@ -94,10 +95,12 @@ function MainApp() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <ProtectedRoute>
-        <MainApp />
-      </ProtectedRoute>
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <ProtectedRoute>
+          <MainApp />
+        </ProtectedRoute>
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }
