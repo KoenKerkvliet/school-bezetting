@@ -985,6 +985,7 @@ export default function Dashboard({ initialDate, onInitialDateUsed }) {
           date={selectedGroup.date}
           staffList={getGroupStaff(selectedGroup.group.id, selectedGroup.date)}
           allStaff={staff}
+          allGroups={groups}
           unitStaff={selectedGroup.group.unitId ? getUnitStaff(selectedGroup.group.unitId, selectedGroup.date) : []}
           unit={units.find(u => u.id === selectedGroup.group.unitId) || null}
           unmanned={isGroupUnmanned(selectedGroup.group.id, selectedGroup.date)}
@@ -1567,7 +1568,7 @@ function GroupDetailCard({ group, date, staffList, unmanned, onStaffClick, canPl
 
 // ── Single group popup ─────────────────────────────────────────────────────
 
-function GroupPopup({ group, date, staffList, allStaff, unitStaff, unit, unmanned, absences, timeAbsences, staffDateAssignments, gradeLevelSchedules, dispatch, onClose, canPlan, absenceReasons }) {
+function GroupPopup({ group, date, staffList, allStaff, allGroups, unitStaff, unit, unmanned, absences, timeAbsences, staffDateAssignments, gradeLevelSchedules, dispatch, onClose, canPlan, absenceReasons }) {
   const [staffAction, setStaffAction] = useState(null);
   const [showReplacementMode, setShowReplacementMode] = useState(false);
   const [replacementTimeSlot, setReplacementTimeSlot] = useState(null); // { startTime, endTime } or null for whole-day
@@ -1630,6 +1631,42 @@ function GroupPopup({ group, date, staffList, allStaff, unitStaff, unit, unmanne
     }
 
     return false;
+  });
+
+  // Staff assigned to other groups or ambulant — available but less likely
+  const otherGroupStaff = (allStaff || []).filter(s => {
+    // Not already in this group (whole-day or overlapping slot)
+    const inGroupEntries = staffList.filter(st => st.id === s.id);
+    if (inGroupEntries.length > 0) {
+      if (replacementTimeSlot) {
+        const blocked = inGroupEntries.some(st =>
+          (!st.replacementStartTime && !st.absent) ||
+          (st.replacementStartTime && timeRangesOverlap(st.replacementStartTime, st.replacementEndTime, replacementTimeSlot.startTime, replacementTimeSlot.endTime))
+        );
+        if (blocked) return false;
+      } else {
+        return false;
+      }
+    }
+
+    // Not absent
+    if (absences.some(a => a.staff_id === s.id && isSameDay(new Date(a.date), date))) return false;
+
+    const daySchedule = s.schedule?.[dayKey];
+    const scheduleType = daySchedule?.type;
+
+    // Only include staff assigned to another group or ambulant
+    if (scheduleType !== 'group' && scheduleType !== 'ambulant') return false;
+
+    // For group-type: skip if assigned to THIS group via weekly schedule
+    if (scheduleType === 'group' && daySchedule?.groupId === group.id) return false;
+
+    // Check working hours cover the required time range
+    const requiredStart = replacementTimeSlot?.startTime || groupTimes.startTime;
+    const requiredEnd = replacementTimeSlot?.endTime || groupTimes.endTime;
+    if (!workingHoursCover(daySchedule, requiredStart, requiredEnd)) return false;
+
+    return true;
   });
 
   // Get absent staff (not already in this group and not in other groups)
@@ -1927,6 +1964,53 @@ function GroupPopup({ group, date, staffList, allStaff, unitStaff, unit, unmanne
                     </div>
                   )}
                 </div>
+
+                {/* Other group / ambulant staff */}
+                {otherGroupStaff.length > 0 && (
+                  <div>
+                    <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+                      Overige collega's
+                    </h3>
+                    <div className="space-y-1">
+                      {otherGroupStaff.map(s => {
+                        const daySchedule = s.schedule?.[dayKey];
+                        const isAmbulant = daySchedule?.type === 'ambulant';
+                        const assignedGroup = !isAmbulant && daySchedule?.groupId
+                          ? (allGroups || []).find(g => g.id === daySchedule.groupId)
+                          : null;
+                        return (
+                          <button
+                            key={s.id}
+                            onClick={() => addReplacement(s.id, replacementTimeSlot?.startTime || null, replacementTimeSlot?.endTime || null)}
+                            className="w-full text-left flex items-center gap-2 rounded-lg px-3 py-2 transition-colors text-sm font-medium bg-amber-50 text-amber-800 hover:bg-amber-100"
+                          >
+                            <UserPlus className="w-3.5 h-3.5 flex-shrink-0" />
+                            <div className="flex-1">
+                              <span>{s.name}</span>
+                              {isAmbulant ? (
+                                <span className="ml-1 text-xs px-1.5 py-0.5 rounded bg-purple-200 text-purple-800 font-semibold">
+                                  Ambulant
+                                </span>
+                              ) : assignedGroup && (
+                                <span className="ml-1 text-xs px-1.5 py-0.5 rounded bg-amber-200 text-amber-800 font-semibold">
+                                  {assignedGroup.name}
+                                </span>
+                              )}
+                              {daySchedule?.startTime && daySchedule?.endTime && (
+                                <span className="ml-1 text-xs text-gray-400">
+                                  ({daySchedule.startTime}–{daySchedule.endTime})
+                                </span>
+                              )}
+                            </div>
+                            <span className="text-xs ml-auto text-amber-600">
+                              {s.role}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
 
                 {/* Absent staff */}
                 {absentStaffForReplacement.length > 0 && (
