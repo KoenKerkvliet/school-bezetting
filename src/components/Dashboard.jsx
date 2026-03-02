@@ -8,7 +8,7 @@ import {
   ChevronLeft, ChevronRight, AlertTriangle, CheckCircle,
   UserX, Users, Clock, X, Plus, UserPlus, Printer, StickyNote, Pencil, Trash2, CalendarOff,
 } from 'lucide-react';
-import { useApp, DAYS, DAY_LABELS_NL, generateId, getGroupTimesForDay, getClosureForDate, isFullClosureDate } from '../context/AppContext.jsx';
+import { useApp, DAYS, DAY_LABELS_NL, generateId, getGroupTimesForDay, getClosureForDate, isFullClosureDate, DEFAULT_ABSENCE_REASONS } from '../context/AppContext.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import { isPlannerOrAbove } from '../utils/roles';
 
@@ -55,8 +55,11 @@ function workingHoursCover(daySchedule, requiredStart, requiredEnd) {
 export default function Dashboard({ initialDate, onInitialDateUsed }) {
   const { state, dispatch } = useApp();
   const { groups, units, staff, absences, timeAbsences, unitOverrides, dayNotes, gradeLevelSchedules, schoolClosures } = state;
-  const { role } = useAuth();
+  const { role, orgSettings } = useAuth();
   const canPlan = isPlannerOrAbove(role);
+  const absenceReasons = orgSettings?.absenceReasons?.length > 0
+    ? orgSettings.absenceReasons
+    : DEFAULT_ABSENCE_REASONS;
 
   // Initialize currentWeek from localStorage or use today
   const [currentWeek, setCurrentWeek] = useState(() => {
@@ -69,7 +72,8 @@ export default function Dashboard({ initialDate, onInitialDateUsed }) {
   });
   const [selectedDay, setSelectedDay] = useState(null);
   const [selectedGroup, setSelectedGroup] = useState(null); // { group, date }
-  const [unitMovePopup, setUnitMovePopup] = useState(null); // { staffId, staffName, date, currentUnitId, rect }
+  const [unitMovePopup, setUnitMovePopup] = useState(null); // { staffId, staffName, staffObj, date, currentUnitId, rect }
+  const [staffAction, setStaffAction] = useState(null); // { staff, date } — for week view absence modal
   const [showPrintModal, setShowPrintModal] = useState(false);
 
   // Handle navigation from other pages (e.g. AbsencePage → specific day)
@@ -807,6 +811,7 @@ export default function Dashboard({ initialDate, onInitialDateUsed }) {
                                   setUnitMovePopup({
                                     staffId: s.id,
                                     staffName: s.name.split(' ')[0],
+                                    staffObj: s,
                                     date,
                                     currentUnitId: getEffectiveUnitId(s, date),
                                     rect,
@@ -852,7 +857,17 @@ export default function Dashboard({ initialDate, onInitialDateUsed }) {
                     </div>
                     <div className="flex flex-wrap gap-1">
                       {ambulantStaff.map(s => (
-                        <span key={s.id} className="text-xs bg-purple-50 text-purple-700 border border-purple-100 rounded-full px-1.5 py-0.5">
+                        <span
+                          key={s.id}
+                          onClick={canPlan ? (e) => {
+                            e.stopPropagation();
+                            setStaffAction({ staff: s, date });
+                          } : undefined}
+                          className={`text-xs bg-purple-50 text-purple-700 border border-purple-100 rounded-full px-1.5 py-0.5 ${
+                            canPlan ? 'cursor-pointer hover:bg-purple-100' : ''
+                          }`}
+                          title={canPlan ? `${s.name.split(' ')[0]} — klik voor afwezigheid` : s.name.split(' ')[0]}
+                        >
                           {s.name.split(' ')[0]}
                         </span>
                       ))}
@@ -907,8 +922,32 @@ export default function Dashboard({ initialDate, onInitialDateUsed }) {
                 Standaard herstellen
               </button>
             )}
+            <button
+              onClick={() => {
+                const staffObj = unitMovePopup.staffObj || staff.find(s => s.id === unitMovePopup.staffId);
+                if (staffObj) setStaffAction({ staff: staffObj, date: unitMovePopup.date });
+                setUnitMovePopup(null);
+              }}
+              className="w-full text-left px-3 py-1.5 text-sm text-amber-700 hover:bg-amber-50 border-t border-gray-100 flex items-center gap-1.5"
+            >
+              <UserX className="w-3.5 h-3.5" />
+              Afwezig melden
+            </button>
           </div>
         </>
+      )}
+
+      {/* ── Staff action modal (week view) ── */}
+      {canPlan && staffAction && (
+        <StaffActionModal
+          staff={staffAction.staff}
+          date={staffAction.date}
+          allAbsences={absences}
+          allTimeAbsences={timeAbsences || []}
+          absenceReasons={absenceReasons}
+          dispatch={dispatch}
+          onClose={() => setStaffAction(null)}
+        />
       )}
 
       {/* ── Day detail modal ── */}
@@ -935,6 +974,7 @@ export default function Dashboard({ initialDate, onInitialDateUsed }) {
           dispatch={dispatch}
           onClose={() => setSelectedDay(null)}
           canPlan={canPlan}
+          absenceReasons={absenceReasons}
         />
       )}
 
@@ -955,6 +995,7 @@ export default function Dashboard({ initialDate, onInitialDateUsed }) {
           dispatch={dispatch}
           onClose={() => setSelectedGroup(null)}
           canPlan={canPlan}
+          absenceReasons={absenceReasons}
         />
       )}
 
@@ -1088,7 +1129,7 @@ function DayDetailModal({
   date, groups, units, staff, absences, timeAbsences, gradeLevelSchedules,
   getGroupStaff, getUnitStaff, getAbsentOnDay, getAvailableStaff, getAmbulantStaff,
   isGroupUnmanned, getEffectiveUnitId, getUnitOverride, onUnitMove, onUnitMoveReset,
-  dayNote, dispatch, onClose, canPlan,
+  dayNote, dispatch, onClose, canPlan, absenceReasons,
 }) {
   const [staffAction, setStaffAction] = useState(null);
   const [unitMoveTarget, setUnitMoveTarget] = useState(null);
@@ -1354,6 +1395,17 @@ function DayDetailModal({
                           Standaard herstellen
                         </button>
                       )}
+                      <button
+                        onClick={() => {
+                          const staffObj = staff.find(st => st.id === unitMoveTarget.staffId);
+                          if (staffObj) setStaffAction(staffObj);
+                          setUnitMoveTarget(null);
+                        }}
+                        className="w-full text-left px-3 py-2 text-sm text-amber-700 hover:bg-amber-50 border-t border-gray-100 flex items-center gap-1.5"
+                      >
+                        <UserX className="w-3.5 h-3.5" />
+                        Afwezig melden
+                      </button>
                     </div>
                   </>
                 )}
@@ -1369,7 +1421,14 @@ function DayDetailModal({
                 </h3>
                 <div className="flex flex-wrap gap-1.5">
                   {ambulantStaff.map(s => (
-                    <span key={s.id} className="text-xs bg-purple-50 text-purple-700 border border-purple-200 rounded-full px-2.5 py-1 font-medium">
+                    <span
+                      key={s.id}
+                      onClick={canPlan ? () => setStaffAction(s) : undefined}
+                      className={`text-xs bg-purple-50 text-purple-700 border border-purple-200 rounded-full px-2.5 py-1 font-medium ${
+                        canPlan ? 'cursor-pointer hover:bg-purple-100' : ''
+                      }`}
+                      title={canPlan ? 'Klik voor afwezigheid' : undefined}
+                    >
                       {s.name}
                     </span>
                   ))}
@@ -1408,6 +1467,7 @@ function DayDetailModal({
         date={date}
         allAbsences={absences}
         allTimeAbsences={timeAbsences}
+        absenceReasons={absenceReasons}
         dispatch={dispatch}
         onClose={() => setStaffAction(null)}
       />
@@ -1507,7 +1567,7 @@ function GroupDetailCard({ group, date, staffList, unmanned, onStaffClick, canPl
 
 // ── Single group popup ─────────────────────────────────────────────────────
 
-function GroupPopup({ group, date, staffList, allStaff, unitStaff, unit, unmanned, absences, timeAbsences, staffDateAssignments, gradeLevelSchedules, dispatch, onClose, canPlan }) {
+function GroupPopup({ group, date, staffList, allStaff, unitStaff, unit, unmanned, absences, timeAbsences, staffDateAssignments, gradeLevelSchedules, dispatch, onClose, canPlan, absenceReasons }) {
   const [staffAction, setStaffAction] = useState(null);
   const [showReplacementMode, setShowReplacementMode] = useState(false);
   const [replacementTimeSlot, setReplacementTimeSlot] = useState(null); // { startTime, endTime } or null for whole-day
@@ -1909,6 +1969,7 @@ function GroupPopup({ group, date, staffList, allStaff, unitStaff, unit, unmanne
         date={date}
         allAbsences={absences}
         allTimeAbsences={timeAbsences}
+        absenceReasons={absenceReasons}
         dispatch={dispatch}
         onClose={() => setStaffAction(null)}
       />
@@ -1919,7 +1980,7 @@ function GroupPopup({ group, date, staffList, allStaff, unitStaff, unit, unmanne
 
 // ── Staff action modal ─────────────────────────────────────────────────────
 
-function StaffActionModal({ staff, date, allAbsences, allTimeAbsences, dispatch, onClose }) {
+function StaffActionModal({ staff, date, allAbsences, allTimeAbsences, absenceReasons, dispatch, onClose }) {
   // Derive live from current state so updates reflect immediately
   const absence = allAbsences.find(a => a.staff_id === staff.id && isSameDay(new Date(a.date), date));
   const staffTimeAbsences = (allTimeAbsences || []).filter(
@@ -1927,13 +1988,15 @@ function StaffActionModal({ staff, date, allAbsences, allTimeAbsences, dispatch,
   );
 
   const [showTimeForm, setShowTimeForm] = useState(false);
+  const [showReasonPicker, setShowReasonPicker] = useState(false);
   const [timeForm, setTimeForm] = useState({ startTime: '08:30', endTime: '10:00', reason: '' });
 
   const dateLabel = capitalize(format(date, 'EEEE d MMMM yyyy', { locale: nl }));
+  const reasons = absenceReasons || DEFAULT_ABSENCE_REASONS;
 
-  function markSick() {
+  function markAbsent(reason) {
     dispatch({ type: 'ADD_ABSENCE', payload: {
-      id: generateId(), staff_id: staff.id, date: formatLocalDate(date), reason: 'Ziek',
+      id: generateId(), staff_id: staff.id, date: formatLocalDate(date), reason,
     }});
     onClose();
   }
@@ -1998,14 +2061,40 @@ function StaffActionModal({ staff, date, allAbsences, allTimeAbsences, dispatch,
                 Verwijderen
               </button>
             </div>
-          ) : (
+          ) : !showReasonPicker ? (
             <button
-              onClick={markSick}
+              onClick={() => setShowReasonPicker(true)}
               className="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg border border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100 transition-colors text-sm font-medium"
             >
               <UserX className="w-4 h-4" />
-              Ziek melden (hele dag)
+              Hele dag afwezig
             </button>
+          ) : (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="text-sm font-medium text-gray-700 flex items-center gap-1.5">
+                  <UserX className="w-3.5 h-3.5 text-amber-500" />
+                  Kies reden:
+                </div>
+                <button
+                  onClick={() => setShowReasonPicker(false)}
+                  className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  Annuleren
+                </button>
+              </div>
+              <div className="grid grid-cols-2 gap-1.5">
+                {reasons.map(reason => (
+                  <button
+                    key={reason}
+                    onClick={() => markAbsent(reason)}
+                    className="text-sm px-3 py-2 rounded-lg border border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100 transition-colors font-medium text-left"
+                  >
+                    {reason}
+                  </button>
+                ))}
+              </div>
+            </div>
           )}
 
           {/* Partial / time absences */}
