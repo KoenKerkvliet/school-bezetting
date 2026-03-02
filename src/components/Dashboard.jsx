@@ -1583,6 +1583,8 @@ function GroupPopup({ group, date, staffList, allStaff, allGroups, unitStaff, un
   const [staffAction, setStaffAction] = useState(null);
   const [showReplacementMode, setShowReplacementMode] = useState(false);
   const [replacementTimeSlot, setReplacementTimeSlot] = useState(null); // { startTime, endTime } or null for whole-day
+  const [selectedReplacement, setSelectedReplacement] = useState(null); // staff object — shows whole-day vs custom time choice
+  const [customTime, setCustomTime] = useState({ startTime: '08:30', endTime: '15:30' });
   const dateLabel = capitalize(format(date, 'EEEE d MMMM yyyy', { locale: nl }));
   const today = isToday(date);
   const dayKey = DAYS[date.getDay() - 1] || 'monday';
@@ -1713,6 +1715,7 @@ function GroupPopup({ group, date, staffList, allStaff, allGroups, unitStaff, un
     });
     setShowReplacementMode(false);
     setReplacementTimeSlot(null);
+    setSelectedReplacement(null);
   }
 
   function removeStaffFromGroup(staffMember) {
@@ -1925,7 +1928,63 @@ function GroupPopup({ group, date, staffList, allStaff, allGroups, unitStaff, un
             {/* Replacement mode */}
             {canPlan && showReplacementMode && (
               <div className="space-y-3">
-                {/* Available staff */}
+                {/* Time choice for selected replacement */}
+                {selectedReplacement && (
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="text-sm font-bold text-gray-900">{selectedReplacement.name}</div>
+                      <button
+                        onClick={() => setSelectedReplacement(null)}
+                        className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
+                      >
+                        Annuleren
+                      </button>
+                    </div>
+                    <div className="space-y-2">
+                      <button
+                        onClick={() => addReplacement(selectedReplacement.id, null, null)}
+                        className="w-full flex items-center gap-2 px-3 py-2 rounded-lg bg-green-100 text-green-800 hover:bg-green-200 transition-colors text-sm font-medium border border-green-200"
+                      >
+                        <UserPlus className="w-3.5 h-3.5" />
+                        Hele dag
+                      </button>
+                      <div className="bg-white rounded-lg border border-gray-200 p-2.5 space-y-2">
+                        <div className="text-xs font-semibold text-gray-600">Aangepast tijdslot</div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="block text-xs text-gray-500 mb-0.5">Van</label>
+                            <input
+                              type="time"
+                              value={customTime.startTime}
+                              onChange={e => setCustomTime(t => ({ ...t, startTime: e.target.value }))}
+                              className="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs text-gray-500 mb-0.5">Tot</label>
+                            <input
+                              type="time"
+                              value={customTime.endTime}
+                              onChange={e => setCustomTime(t => ({ ...t, endTime: e.target.value }))}
+                              className="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => addReplacement(selectedReplacement.id, customTime.startTime, customTime.endTime)}
+                          disabled={!customTime.startTime || !customTime.endTime || customTime.startTime >= customTime.endTime}
+                          className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed"
+                        >
+                          <Clock className="w-3.5 h-3.5" />
+                          Toevoegen ({customTime.startTime}–{customTime.endTime})
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Staff lists (hidden when time choice is shown) */}
+                {!selectedReplacement && (<>
                 <div>
                   <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
                     {replacementTimeSlot
@@ -1945,7 +2004,14 @@ function GroupPopup({ group, date, staffList, allStaff, allGroups, unitStaff, un
                         return (
                           <button
                             key={s.id}
-                            onClick={() => addReplacement(s.id, replacementTimeSlot?.startTime || null, replacementTimeSlot?.endTime || null)}
+                            onClick={() => {
+                              if (replacementTimeSlot) {
+                                addReplacement(s.id, replacementTimeSlot.startTime, replacementTimeSlot.endTime);
+                              } else {
+                                setSelectedReplacement(s);
+                                setCustomTime({ startTime: groupTimes.startTime || '08:30', endTime: groupTimes.endTime || '15:30' });
+                              }
+                            }}
                             className={`w-full text-left flex items-center gap-2 rounded-lg px-3 py-2 transition-colors text-sm font-medium ${
                               isUnitStaff
                                 ? 'bg-blue-50 text-blue-700 hover:bg-blue-100'
@@ -1992,7 +2058,14 @@ function GroupPopup({ group, date, staffList, allStaff, allGroups, unitStaff, un
                         return (
                           <button
                             key={s.id}
-                            onClick={() => addReplacement(s.id, replacementTimeSlot?.startTime || null, replacementTimeSlot?.endTime || null)}
+                            onClick={() => {
+                              if (replacementTimeSlot) {
+                                addReplacement(s.id, replacementTimeSlot.startTime, replacementTimeSlot.endTime);
+                              } else {
+                                setSelectedReplacement(s);
+                                setCustomTime({ startTime: groupTimes.startTime || '08:30', endTime: groupTimes.endTime || '15:30' });
+                              }
+                            }}
                             className="w-full text-left flex items-center gap-2 rounded-lg px-3 py-2 transition-colors text-sm font-medium bg-amber-50 text-amber-800 hover:bg-amber-100"
                           >
                             <UserPlus className="w-3.5 h-3.5 flex-shrink-0" />
@@ -2052,6 +2125,7 @@ function GroupPopup({ group, date, staffList, allStaff, allGroups, unitStaff, un
                     </div>
                   </div>
                 )}
+                </>)}
               </div>
             )}
           </div>
