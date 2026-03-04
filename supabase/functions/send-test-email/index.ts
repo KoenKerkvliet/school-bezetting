@@ -91,7 +91,7 @@ serve(async (req: Request) => {
     }
 
     // Send via Emailit
-    const emailitApiKey = Deno.env.get("EMAILIT_API_KEY");
+    const emailitApiKey = Deno.env.get("EMAILIT_API_KEY")?.trim();
     if (!emailitApiKey) {
       return new Response(
         JSON.stringify({ error: "EMAILIT_API_KEY is niet geconfigureerd op de server" }),

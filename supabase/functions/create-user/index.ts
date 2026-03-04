@@ -208,7 +208,7 @@ serve(async (req: Request) => {
     let emailSent = false;
     let emailError = "";
 
-    const emailitApiKey = Deno.env.get("EMAILIT_API_KEY");
+    const emailitApiKey = Deno.env.get("EMAILIT_API_KEY")?.trim();
     if (emailitApiKey) {
       try {
         const subject = `Uitnodiging voor ${schoolName || "School Bezetting"}`;
